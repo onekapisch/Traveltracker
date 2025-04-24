@@ -1,0 +1,1971 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Atlasphere - Your Travel Tracker</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://unpkg.com/topojson@3"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;700&display=swap" rel="stylesheet">
+
+    <style>
+        /* --- Base & Blue Luxury Theme Variables --- */
+        :root {
+            --bg-primary: #1a1d24; /* Dark slightly blueish charcoal */
+            --bg-secondary: #2c313a; /* Dark gray-blue */
+            --bg-tertiary: #3a404d; /* Medium gray-blue */
+            --accent-primary: #00aaff; /* Bright Blue */
+            --accent-secondary: #66ccff; /* Lighter Blue */
+            --text-primary: #f0f4f8; /* Off-white, slightly cool */
+            --text-secondary: #a8b0cc; /* Light blue-gray */
+            --border-color: rgba(0, 170, 255, 0.2); /* Faint blue border */
+            --border-color-medium: rgba(0, 170, 255, 0.4);
+            --glow-color-light: rgba(0, 170, 255, 0.3);
+            --danger-color: #e04040; /* Muted red */
+            --danger-hover-bg: rgba(224, 64, 64, 0.1);
+            --font-main: 'Montserrat', sans-serif;
+            /* Globe Colors (Dark Theme) */
+            --globe-ocean: #080a10; /* Very dark blue/black for ocean */
+            --globe-land: #252830; /* Dark gray for land */
+            --globe-land-outline: #404550; /* Slightly lighter outline */
+            --globe-visited-outline: var(--accent-secondary); /* Outline for visited on globe */
+            --flag-fallback-fill: var(--accent-primary); /* Fallback color if flag fails */
+            --flag-error-fill: #444444; /* Color for flag load error */
+        }
+
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            overscroll-behavior: none; /* Prevent pull-to-refresh */
+        }
+
+        body {
+            font-family: var(--font-main);
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            align-items: center;
+            padding: 1rem; /* Base padding */
+            position: relative;
+            background: linear-gradient(180deg, var(--bg-secondary) 0%, var(--bg-primary) 100%);
+        }
+
+        /* --- Typography & Title --- */
+        h1#main-title {
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            color: var(--text-primary);
+            margin-bottom: 0.5rem;
+            padding-bottom: 8px;
+            position: relative;
+            display: inline-block;
+            text-align: center;
+            font-size: 1.875rem; /* text-3xl */
+        }
+        @media (min-width: 768px) { /* md breakpoint */
+            h1#main-title {
+                font-size: 2.25rem; /* text-4xl */
+                margin-top: 1.5rem; /* my-6 */
+                margin-bottom: 2rem; /* mb-8 */
+            }
+        }
+
+        h1#main-title::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 60px;
+            height: 3px;
+            background-color: var(--accent-primary);
+            border-radius: 1px;
+        }
+
+        p#subtitle {
+            text-align: center;
+            margin-bottom: 1.5rem; /* mb-6 */
+            font-size: 1rem; /* Slightly smaller base */
+            color: var(--text-secondary);
+            font-weight: 300;
+            line-height: 1.6;
+            max-width: 90%; /* Prevent overflow on small screens */
+        }
+        @media (min-width: 768px) { /* md breakpoint */
+            p#subtitle {
+                font-size: 1.125rem; /* text-lg */
+                margin-bottom: 2.5rem; /* md:mb-10 */
+                max-width: 100%;
+            }
+        }
+
+        .info-label {
+            font-size: 0.95rem;
+            color: var(--text-secondary);
+            font-weight: 400;
+        }
+
+        /* --- View Container --- */
+        #app-container {
+            width: 100%;
+            max-width: 1500px; /* Max width for content */
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /* --- Navigation Tabs --- */
+        #view-tabs {
+            margin-bottom: 1.5rem;
+            display: flex;
+            gap: 0.5rem;
+            background-color: var(--bg-secondary);
+            padding: 0.4rem;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+            flex-wrap: wrap; /* Allow tabs to wrap on small screens */
+            justify-content: center;
+        }
+        .tab-button {
+            padding: 0.5rem 1rem;
+            border: 1px solid transparent;
+            background-color: transparent;
+            color: var(--text-secondary);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.25s ease-in-out;
+            font-weight: 500;
+            letter-spacing: 0.3px;
+            white-space: nowrap; /* Prevent wrapping inside button */
+            font-size: 0.9rem;
+        }
+        .tab-button:hover {
+            color: var(--text-primary);
+            background-color: var(--bg-tertiary);
+        }
+        .tab-button.active {
+            background-color: var(--accent-primary);
+            color: var(--bg-primary);
+            border-color: var(--accent-primary);
+            font-weight: 700;
+            box-shadow: 0 0 8px var(--glow-color-light);
+        }
+
+        /* --- View Panels --- */
+        .view-panel {
+            width: 100%;
+            display: none; /* Hidden by default */
+            flex-direction: column;
+            align-items: center;
+        }
+        .view-panel.active {
+            display: flex; /* Shown when active */
+        }
+
+        /* --- Map View Specific Styles --- */
+        #map-container {
+            width: 100%;
+            margin: 0 auto 2.5rem auto;
+            aspect-ratio: 16 / 9; /* Maintain aspect ratio */
+            max-height: calc(70vh - 100px); /* Limit height relative to viewport */
+            position: relative;
+            overflow: hidden;
+            border: 1px solid #444;
+            border-radius: 8px;
+            cursor: grab;
+            background-color: var(--bg-secondary);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.25);
+        }
+        #map-container:active { cursor: grabbing; }
+
+        #world-map {
+            display: block;
+            width: 100%;
+            height: 100%;
+            background-color: var(--bg-secondary);
+        }
+        .country {
+            fill: var(--bg-tertiary); /* Default land color */
+            stroke: var(--bg-secondary); /* Default border color */
+            stroke-width: 0.6; /* Base stroke width */
+            cursor: pointer;
+            transition: fill 0.2s ease, transform 0.1s ease, stroke 0.2s ease, opacity 0.2s ease;
+            transform-origin: center center;
+            opacity: 1;
+        }
+        .country:hover:not(.visited) { /* Hover only on non-visited */
+            fill: var(--accent-secondary); /* Lighter blue fill on hover */
+            stroke: var(--accent-primary);
+            opacity: 0.9;
+        }
+        .country.pressed:not(.visited) { /* Pressed state only on non-visited */
+            fill: var(--accent-primary); /* Darker blue when pressed */
+            filter: brightness(0.95);
+            transform: scale(0.995);
+            animation: none; /* Override potential animations */
+        }
+        /* Visited country style - uses SVG pattern fill */
+        .country.visited {
+            /* Fill is set by JS using the pattern */
+            stroke: var(--accent-secondary); /* Lighter blue outline */
+            stroke-width: 0.8; /* Slightly thicker outline for visited */
+            filter: drop-shadow(0 0 4px var(--glow-color-light)); /* Add a subtle glow */
+            box-shadow: none;
+            animation: none;
+            transform: scale(1); /* Ensure no scaling */
+        }
+        .country.visited:hover {
+            stroke: var(--accent-primary); /* Brighter outline on hover */
+            filter: brightness(1.1) drop-shadow(0 0 6px var(--glow-color-light)); /* Slightly brighter glow */
+            box-shadow: none;
+            opacity: 0.85; /* Slightly dim on hover to indicate interaction */
+        }
+        .country.flag-error { /* Style for when flag fails to load */
+             fill: var(--flag-error-fill);
+             stroke: #777;
+        }
+
+        /* SVG Pattern for Flags */
+        .flag-pattern image {
+            /* Ensure image covers the pattern area */
+            width: 100%;
+            height: 100%;
+            /* xMidYMid slice: Center image, scale to cover, crop excess */
+            preserveAspectRatio: xMidYMid slice;
+        }
+
+
+        #tooltip {
+            position: absolute;
+            display: none; /* Hidden by default */
+            background-color: rgba(44, 49, 58, 0.95); /* Semi-transparent dark background */
+            color: var(--text-primary);
+            border: 1px solid var(--bg-tertiary);
+            padding: 0.5rem 0.8rem;
+            border-radius: 4px;
+            font-family: var(--font-main);
+            font-size: 0.8rem;
+            font-weight: 400;
+            white-space: nowrap; /* Prevent wrapping */
+            z-index: 100; /* Ensure tooltip is on top */
+            pointer-events: none; /* Allow clicks to pass through */
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            backdrop-filter: blur(2px); /* Subtle blur effect */
+            transition: opacity 0.15s ease-out;
+        }
+
+        /* --- Globe View Specific Styles --- */
+        #globe-view {
+            /* Use viewport height, constrain max height */
+            height: 70vh; /* Relative height */
+            max-height: 600px; /* Max fixed height */
+            min-height: 300px; /* Min fixed height */
+            position: relative;
+            width: 100%;
+        }
+        #globe-container {
+            width: 100%;
+            height: 100%;
+            border-radius: 8px;
+            overflow: hidden; /* Clip canvas */
+            position: relative;
+            border: 1px solid #444;
+            background-color: #05080f; /* Slightly bluer space background */
+            cursor: grab;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+        }
+        #globe-container:active { cursor: grabbing; }
+
+        #globe-canvas {
+            display: block; /* Remove extra space below canvas */
+            width: 100%;
+            height: 100%;
+        }
+        #globe-loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+            display: none; /* Hidden initially */
+            z-index: 10; /* Above canvas */
+            text-align: center;
+            background: rgba(0,0,0,0.5);
+            padding: 1rem;
+            border-radius: 5px;
+        }
+
+        /* --- Shared Visited Info Styles --- */
+        #visited-info {
+            margin-top: 1.5rem;
+            padding: 1rem; /* Base padding */
+            @media (min-width: 640px) { /* sm breakpoint */
+                padding: 1.5rem;
+            }
+            @media (min-width: 768px) { /* md breakpoint */
+                padding: 1.5rem 2rem; /* Restore padding on larger screens */
+            }
+            text-align: center;
+            width: 100%;
+            max-width: 800px; /* Constrain width */
+            background-color: var(--bg-secondary);
+            border-radius: 8px;
+            border: 1px solid #444;
+            position: relative;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.25);
+        }
+        #visited-count-container {
+            display: flex;
+            align-items: baseline;
+            justify-content: center;
+            gap: 0.75rem;
+            margin-bottom: 1rem; /* Add space below count */
+        }
+        #visited-info-label { /* Target the specific label */
+            font-size: 0.9rem; /* Slightly smaller */
+            color: var(--text-secondary);
+            font-weight: 400;
+        }
+        #visited-count {
+            font-size: 2.2rem; /* Slightly smaller count */
+            @media (min-width: 768px) { /* md breakpoint */
+                font-size: 2.5rem; /* Restore size on larger screens */
+            }
+            font-weight: 500;
+            color: var(--text-primary);
+            line-height: 1;
+            text-shadow: none;
+        }
+        #progress-container {
+            width: 100%;
+            background-color: var(--bg-tertiary);
+            border-radius: 4px;
+            height: 1.5rem; /* Increased height from 0.75rem to 1.5rem */
+            overflow: hidden;
+            margin-bottom: 1.5rem; /* Spacing below progress bar */
+            border: 1px solid #555;
+            box-shadow: inset 0 1px 2px rgba(0,0,0,0.3);
+        }
+        #progress-bar {
+            height: 100%;
+            width: 0%; /* Initial width */
+            background: var(--accent-primary); /* Solid blue */
+            border-radius: 3px;
+            transition: width 0.5s ease-out;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            font-size: 0.65rem;
+            font-weight: 500;
+            color: var(--bg-primary);
+            text-shadow: none;
+            box-shadow: none;
+            padding-right: 5px;
+            overflow: hidden; /* Hide text if bar is too small */
+        }
+        #visited-list-container {
+            margin-top: 1.5rem;
+            padding: 1rem; /* Base padding */
+             @media (min-width: 640px) { /* sm breakpoint */
+                padding: 1.5rem;
+            }
+            background-color: var(--bg-primary);
+            border-radius: 6px;
+            border: 1px solid var(--bg-tertiary);
+            max-height: 300px; /* Limit height and allow scroll */
+            overflow-y: auto; /* Enable vertical scroll */
+        }
+        .list-title {
+            font-size: 1rem;
+            color: var(--text-primary);
+            margin-bottom: 1rem;
+            font-weight: 500;
+            text-align: left;
+            letter-spacing: 0.3px;
+            border-bottom: 1px solid var(--bg-tertiary);
+            padding-bottom: 0.5rem;
+        }
+        #visited-list { text-align: left; }
+
+        .continent-group { margin-bottom: 1rem; }
+
+        .continent-title {
+            font-weight: 700;
+            color: var(--accent-secondary); /* Lighter blue */
+            margin-bottom: 0.6rem;
+            border-bottom: none;
+            padding-bottom: 0;
+            font-size: 0.85rem;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+        #visited-list ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            display: flex;
+            flex-wrap: wrap; /* Allow items to wrap */
+            gap: 0.5rem; /* Spacing between items */
+            align-items: flex-start;
+        }
+        #visited-list li {
+            background-color: var(--bg-tertiary);
+            color: var(--text-secondary);
+            padding: 0.35rem 0.8rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: 400;
+            border: 1px solid var(--bg-tertiary);
+            transition: all 0.2s ease;
+            cursor: default; /* Indicate non-interactive */
+        }
+        #visited-list li:hover { /* Subtle hover for visual feedback */
+            border-color: var(--border-color-medium);
+            background-color: var(--bg-secondary);
+            color: var(--text-primary);
+        }
+
+        /* --- Action Buttons Container --- */
+        #action-buttons-container {
+            margin-top: 1.5rem;
+            margin-bottom: 2rem; /* Add this line for extra space below the buttons */
+            display: flex;
+            flex-direction: column; /* Stack buttons vertically on small screens */
+            gap: 0.75rem; /* Reduced gap for stacked buttons */
+            width: 100%;
+            max-width: 800px; /* Match visited info width */
+        }
+        @media (min-width: 640px) { /* sm breakpoint */
+            #action-buttons-container {
+                flex-direction: row; /* Side-by-side on larger screens */
+                justify-content: center;
+                gap: 1rem; /* Restore gap */
+            }
+        }
+
+        /* --- Action Button Styles (Blue Theme) --- */
+        .action-button {
+            padding: 0.6rem 1.2rem;
+            border: 1px solid var(--bg-tertiary);
+            background-color: var(--bg-secondary);
+            color: var(--text-secondary);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.25s ease-in-out;
+            font-weight: 500;
+            letter-spacing: 0.3px;
+            width: 80%; /* Take more width when stacked */
+            max-width: 260px; /* Max width constraint */
+            text-align: center;
+            text-transform: none;
+            font-size: 0.85rem;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+            line-height: 1.5;
+        }
+        @media (min-width: 640px) { /* sm breakpoint */
+            .action-button {
+                width: auto; /* Auto width when side-by-side */
+                flex-grow: 1; /* Allow buttons to grow */
+            }
+        }
+
+        .action-button:hover {
+            border-color: var(--border-color-medium);
+            color: var(--text-primary);
+            background-color: var(--bg-tertiary);
+            box-shadow: 0 3px 8px rgba(0,0,0,0.2);
+        }
+        #download-summary-button {
+            border-color: var(--accent-primary);
+            color: var(--accent-primary);
+            background-color: transparent;
+        }
+        #download-summary-button:hover:not(:disabled) {
+            background-color: rgba(0, 170, 255, 0.1);
+            color: var(--accent-secondary);
+            border-color: var(--accent-secondary);
+        }
+        #reset-button {
+            border-color: #667;
+            color: #aaa; /* Keep reset subtle */
+        }
+        #reset-button:hover:not(:disabled) {
+            border-color: var(--danger-color);
+            color: var(--danger-color);
+            background-color: var(--danger-hover-bg);
+        }
+        .action-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            box-shadow: none;
+            background-color: var(--bg-secondary) !important; /* Ensure background doesn't change */
+            border-color: var(--bg-tertiary) !important; /* Ensure border doesn't change */
+            color: #666 !important; /* Ensure text color indicates disabled */
+        }
+
+        /* --- Name Prompt Dialog Styles --- */
+        #name-prompt-overlay {
+            position: fixed; /* Cover viewport */
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(10, 15, 31, 0.7); /* Dark semi-transparent overlay */
+            display: none; /* Hidden by default */
+            justify-content: center;
+            align-items: center;
+            z-index: 1000; /* Ensure it's on top */
+            backdrop-filter: blur(5px); /* Background blur */
+            padding: 1rem; /* Padding for small screens */
+        }
+        #name-prompt-dialog {
+            background-color: var(--bg-secondary);
+            padding: 1.5rem; /* Base padding */
+            @media (min-width: 640px) { /* sm breakpoint */
+                padding: 2rem 2.5rem; /* Restore padding */
+            }
+            border-radius: 10px;
+            border: 1px solid var(--border-color-medium);
+            box-shadow: 0 5px 25px rgba(0, 170, 255, 0.15);
+            text-align: center;
+            max-width: 400px; /* Max width */
+            width: 95%; /* Responsive width */
+        }
+        #name-prompt-dialog h2 {
+            color: var(--text-primary);
+            font-weight: 500;
+            margin-top: 0;
+            margin-bottom: 1rem;
+            font-size: 1.2rem;
+        }
+        #name-prompt-dialog p {
+            color: var(--text-secondary);
+            margin-bottom: 1.5rem;
+            font-size: 0.9rem;
+        }
+        #name-input {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            margin-bottom: 1.5rem;
+            border-radius: 6px;
+            border: 1px solid var(--bg-tertiary);
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            font-family: var(--font-main);
+            font-size: 1rem;
+            box-shadow: inset 0 1px 3px rgba(0,0,0,0.3);
+            transition: border-color 0.2s ease;
+        }
+        #name-input:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+            box-shadow: inset 0 1px 3px rgba(0,0,0,0.3), 0 0 8px var(--glow-color-light);
+        }
+        #name-prompt-button {
+            padding: 0.6rem 1.5rem;
+            border: 1px solid var(--accent-primary);
+            background-color: var(--accent-primary);
+            color: var(--bg-primary);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.25s ease-in-out;
+            font-weight: 700;
+            font-size: 0.9rem;
+            letter-spacing: 0.5px;
+            width: 100%; /* Full width button */
+            @media (min-width: 640px) { /* sm breakpoint */
+                width: auto; /* Auto width on larger screens */
+            }
+        }
+        #name-prompt-button:hover {
+            background-color: var(--accent-secondary);
+            border-color: var(--accent-secondary);
+            box-shadow: 0 0 10px var(--glow-color-light); /* Use light glow */
+        }
+
+        /* Utility class to hide elements visually but keep accessible */
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border-width: 0;
+        }
+
+        /* Utility class for hidden elements */
+        .hidden {
+            display: none !important;
+        }
+
+    </style>
+</head>
+<body>
+    <h1 id="main-title">Atlasphere</h1>
+
+    <p id="subtitle">Loading your exploration data...</p>
+
+    <div id="view-tabs">
+        <button class="tab-button active" data-view="map-view">World Map</button>
+        <button class="tab-button" data-view="globe-view">3D Globe</button>
+    </div>
+
+    <div id="app-container">
+
+        <div id="map-view" class="view-panel active">
+            <div id="map-container" aria-label="Interactive world map">
+                <svg id="world-map" viewBox="0 0 960 500" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" role="img" aria-labelledby="mapTitle">
+                    <title id="mapTitle">World Map - Click countries to mark as visited</title>
+                    <defs id="flag-patterns">
+                        </defs>
+                    <g id="map-group"></g>
+                </svg>
+            </div>
+            <div id="tooltip" role="tooltip"></div>
+        </div>
+
+        <div id="globe-view" class="view-panel">
+            <div id="globe-container" aria-label="Interactive 3D globe - Click countries to mark visited">
+                 <canvas id="globe-canvas"></canvas>
+                 <div id="globe-loading" aria-live="polite">Initializing 3D Globe...</div>
+            </div>
+        </div>
+
+        <div id="visited-info" aria-live="polite">
+             <div id="progress-container" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" title="Percentage of world countries visited">
+                 <div id="progress-bar">0%</div>
+             </div>
+             <div id="visited-count-container">
+                 <span id="visited-info-label" class="info-label">Countries Visited:</span>
+                 <div id="visited-count">0</div>
+             </div>
+             <div id="visited-list-container" class="hidden">
+                 <h3 class="list-title">Visited Countries by Continent:</h3>
+                 <div id="visited-list"></div>
+             </div>
+        </div>
+
+        <div id="action-buttons-container">
+            <button id="download-summary-button" class="action-button" disabled>Download Summary</button>
+            <button id="reset-button" class="action-button" disabled>Reset Map</button>
+        </div>
+
+    </div> <div id="name-prompt-overlay" role="dialog" aria-modal="true" aria-labelledby="name-prompt-title">
+        <div id="name-prompt-dialog">
+            <h2 id="name-prompt-title">Welcome Explorer!</h2>
+            <p>Please enter your name to personalize your Atlasphere.</p>
+            <label for="name-input" class="sr-only">Enter your name</label>
+            <input type="text" id="name-input" placeholder="Enter your name..." maxlength="50">
+            <button id="name-prompt-button">Begin Journey</button>
+        </div>
+    </div>
+
+    <script>
+        // --- Configuration & Constants ---
+        const MAP_DATA_URL = 'https://unpkg.com/world-atlas@2/countries-110m.json';
+        const COUNTRY_NAMES_URL = 'https://unpkg.com/world-atlas@1/world/110m.tsv'; // Contains ISO n3, name
+        // Flag API using ISO A2 lowercase codes (e.g., 'us', 'de')
+        // Using flagcdn.com - provides SVG and PNG flags. Using PNG for simplicity in canvas. w80 = 80px width.
+        const FLAG_URL_TEMPLATE = 'https://flagcdn.com/w80/{iso_a2_lower}.png';
+        const FLAG_SVG_URL_TEMPLATE = 'https://flagcdn.com/{iso_a2_lower}.svg'; // For SVG patterns
+
+        // ISO 3166-1 alpha-3 to alpha-2 mapping (add more as needed or find a comprehensive JSON)
+        // Source: Partially derived, needs verification/completion for full coverage
+        const iso3to2Map = { AFG: 'AF', AGO: 'AO', ALB: 'AL', ARE: 'AE', ARG: 'AR', ARM: 'AM', ATA: 'AQ', ATF: 'TF', AUS: 'AU', AUT: 'AT', AZE: 'AZ', BDI: 'BI', BEL: 'BE', BEN: 'BJ', BFA: 'BF', BGD: 'BD', BGR: 'BG', BHS: 'BS', BIH: 'BA', BLR: 'BY', BLZ: 'BZ', BMU: 'BM', BOL: 'BO', BRA: 'BR', BRN: 'BN', BTN: 'BT', BWA: 'BW', CAF: 'CF', CAN: 'CA', CHE: 'CH', CHL: 'CL', CHN: 'CN', CIV: 'CI', CMR: 'CM', COD: 'CD', COG: 'CG', COL: 'CO', CRI: 'CR', CUB: 'CU', CYP: 'CY', CZE: 'CZ', DEU: 'DE', DJI: 'DJ', DNK: 'DK', DOM: 'DO', DZA: 'DZ', ECU: 'EC', EGY: 'EG', ERI: 'ER', ESH: 'EH', ESP: 'ES', EST: 'EE', ETH: 'ET', FIN: 'FI', FJI: 'FJ', FLK: 'FK', FRA: 'FR', GAB: 'GA', GBR: 'GB', GEO: 'GE', GHA: 'GH', GIN: 'GN', GMB: 'GM', GNB: 'GW', GNQ: 'GQ', GRC: 'GR', GRL: 'GL', GTM: 'GT', GUF: 'GF', GUY: 'GY', HND: 'HN', HRV: 'HR', HTI: 'HT', HUN: 'HU', IDN: 'ID', IND: 'IN', IRL: 'IE', IRN: 'IR', IRQ: 'IQ', ISL: 'IS', ISR: 'IL', ITA: 'IT', JAM: 'JM', JOR: 'JO', JPN: 'JP', KAZ: 'KZ', KEN: 'KE', KGZ: 'KG', KHM: 'KH', KOR: 'KR', KWT: 'KW', LAO: 'LA', LBN: 'LB', LBR: 'LR', LBY: 'LY', LKA: 'LK', LSO: 'LS', LTU: 'LT', LUX: 'LU', LVA: 'LV', MAR: 'MA', MDA: 'MD', MDG: 'MG', MEX: 'MX', MKD: 'MK', MLI: 'ML', MMR: 'MM', MNE: 'ME', MNG: 'MN', MOZ: 'MZ', MRT: 'MR', MWI: 'MW', MYS: 'MY', NAM: 'NA', NCL: 'NC', NER: 'NE', NGA: 'NG', NIC: 'NI', NLD: 'NL', NOR: 'NO', NPL: 'NP', NZL: 'NZ', OMN: 'OM', PAK: 'PK', PAN: 'PA', PER: 'PE', PHL: 'PH', PNG: 'PG', POL: 'PL', PRI: 'PR', PRK: 'KP', PRT: 'PT', PRY: 'PY', QAT: 'QA', ROU: 'RO', RUS: 'RU', RWA: 'RW', SAU: 'SA', SDN: 'SD', SEN: 'SN', SLB: 'SB', SLE: 'SL', SLV: 'SV', SOM: 'SO', SRB: 'RS', SSD: 'SS', SUR: 'SR', SVK: 'SK', SVN: 'SI', SWE: 'SE', SWZ: 'SZ', SYR: 'SY', TCD: 'TD', TGO: 'TG', THA: 'TH', TJK: 'TJ', TKM: 'TM', TLS: 'TL', TTO: 'TT', TUN: 'TN', TUR: 'TR', TWN: 'TW', TZA: 'TZ', UGA: 'UG', UKR: 'UA', URY: 'UY', USA: 'US', UZB: 'UZ', VEN: 'VE', VNM: 'VN', VUT: 'VU', YEM: 'YE', ZAF: 'ZA', ZMB: 'ZM', ZWE: 'ZW' }; // Kosovo (XKX) not in 110m data, others might be missing
+
+        // Mapping from ISO A3 country code to continent (verify/expand as needed)
+        const countryContinentMap = { AFG: 'Asia', AGO: 'Africa', ALB: 'Europe', ARE: 'Asia', ARG: 'South America', ARM: 'Asia', ATA: 'Antarctica', ATF: 'Antarctica', AUS: 'Oceania', AUT: 'Europe', AZE: 'Asia', BDI: 'Africa', BEL: 'Europe', BEN: 'Africa', BFA: 'Africa', BGD: 'Asia', BGR: 'Europe', BHS: 'North America', BIH: 'Europe', BLR: 'Europe', BLZ: 'North America', BMU: 'North America', BOL: 'South America', BRA: 'South America', BRN: 'Asia', BTN: 'Asia', BWA: 'Africa', CAF: 'Africa', CAN: 'North America', CHE: 'Europe', CHL: 'South America', CHN: 'Asia', CIV: 'Africa', CMR: 'Africa', COD: 'Africa', COG: 'Africa', COL: 'South America', CRI: 'North America', CUB: 'North America', CYP: 'Asia', CZE: 'Europe', DEU: 'Europe', DJI: 'Africa', DNK: 'Europe', DOM: 'North America', DZA: 'Africa', ECU: 'South America', EGY: 'Africa', ERI: 'Africa', ESH: 'Africa', ESP: 'Europe', EST: 'Europe', ETH: 'Africa', FIN: 'Europe', FJI: 'Oceania', FLK: 'South America', FRA: 'Europe', GAB: 'Africa', GBR: 'Europe', GEO: 'Asia', GHA: 'Africa', GIN: 'Africa', GMB: 'Africa', GNB: 'Africa', GNQ: 'Africa', GRC: 'Europe', GRL: 'North America', GTM: 'North America', GUF: 'South America', GUY: 'South America', HND: 'North America', HRV: 'Europe', HTI: 'North America', HUN: 'Europe', IDN: 'Asia', IND: 'Asia', IRL: 'Europe', IRN: 'Asia', IRQ: 'Asia', ISL: 'Europe', ISR: 'Asia', ITA: 'Europe', JAM: 'North America', JOR: 'Asia', JPN: 'Asia', KAZ: 'Asia', KEN: 'Africa', KGZ: 'Asia', KHM: 'Asia', KOR: 'Asia', KWT: 'Asia', LAO: 'Asia', LBN: 'Asia', LBR: 'Africa', LBY: 'Africa', LKA: 'Asia', LSO: 'Africa', LTU: 'Europe', LUX: 'Europe', LVA: 'Europe', MAR: 'Africa', MDA: 'Europe', MDG: 'Africa', MEX: 'North America', MKD: 'Europe', MLI: 'Africa', MMR: 'Asia', MNE: 'Europe', MNG: 'Asia', MOZ: 'Africa', MRT: 'Africa', MWI: 'Africa', MYS: 'Asia', NAM: 'Africa', NCL: 'Oceania', NER: 'Africa', NGA: 'Africa', NIC: 'North America', NLD: 'Europe', NOR: 'Europe', NPL: 'Asia', NZL: 'Oceania', OMN: 'Asia', PAK: 'Asia', PAN: 'North America', PER: 'South America', PHL: 'Asia', PNG: 'Oceania', POL: 'Europe', PRI: 'North America', PRK: 'Asia', PRT: 'Europe', PRY: 'South America', QAT: 'Asia', ROU: 'Europe', RUS: 'Europe', RWA: 'Africa', SAU: 'Asia', SDN: 'Africa', SEN: 'Africa', SLB: 'Oceania', SLE: 'Africa', SLV: 'North America', SOM: 'Africa', SRB: 'Europe', SSD: 'Africa', SUR: 'South America', SVK: 'Europe', SVN: 'Europe', SWE: 'Europe', SWZ: 'Africa', SYR: 'Asia', TCD: 'Africa', TGO: 'Africa', THA: 'Asia', TJK: 'Asia', TKM: 'Asia', TLS: 'Asia', TTO: 'North America', TUN: 'Africa', TUR: 'Asia', TWN: 'Asia', TZA: 'Africa', UGA: 'Africa', UKR: 'Europe', URY: 'South America', USA: 'North America', UZB: 'Asia', VEN: 'South America', VNM: 'Asia', VUT: 'Oceania', YEM: 'Asia', ZAF: 'Africa', ZMB: 'Africa', ZWE: 'Africa' };
+        const continentOrder = ['Africa', 'Asia', 'Europe', 'North America', 'Oceania', 'South America', 'Antarctica'];
+        const MIN_ZOOM = 1; const MAX_ZOOM = 18;
+        const INITIAL_SVG_WIDTH = 960; const INITIAL_SVG_HEIGHT = 500;
+
+        // --- State Variables ---
+        const visitedCountries = new Set(); // Stores ISO n3 IDs of visited countries
+        let countryFeatures = []; // Array of GeoJSON features for countries
+        let countryNameMap = {}; // Map from country ID (ISO n3) to name
+        let countryIdMap = {}; // Map from country ID (ISO n3) to ISO a3
+        let totalCountries = 0; // Total number of valid countries loaded
+        let currentTransform = d3.zoomIdentity; // Current D3 zoom transform
+        let activeView = 'map-view'; // Current active view ('map-view' or 'globe-view')
+        let globeAnimationId = null; // ID for the globe animation frame request
+        let userName = null; // User's entered name
+        let isNameEntered = false; // Flag: true if user has entered a name
+        let firstClickData = null; // Stores data of the first country click before name entry
+        const flagImageCache = {}; // Simple cache for loaded flag images (for canvas)
+        const flagLoadErrors = new Set(); // Track flags that failed to load
+
+        // --- DOM Element References ---
+        const mapContainer = document.getElementById('map-container');
+        const mapSvg = d3.select("#world-map");
+        const mapGroup = d3.select("#map-group");
+        const flagPatternsGroup = d3.select("#flag-patterns");
+        const tooltip = d3.select("#tooltip");
+        const visitedCountElement = document.getElementById('visited-count');
+        const visitedListDiv = document.getElementById('visited-list');
+        const visitedListContainer = document.getElementById('visited-list-container');
+        const progressBar = document.getElementById('progress-bar');
+        const progressContainer = document.getElementById('progress-container');
+        const viewTabs = document.getElementById('view-tabs');
+        const mapViewPanel = document.getElementById('map-view');
+        const globeViewPanel = document.getElementById('globe-view');
+        const globeContainer = document.getElementById('globe-container');
+        const globeCanvas = document.getElementById('globe-canvas');
+        const globeLoadingIndicator = document.getElementById('globe-loading');
+        const subtitleElement = document.getElementById('subtitle');
+        const downloadSummaryButton = document.getElementById('download-summary-button');
+        const visitedInfoSection = document.getElementById('visited-info');
+        const resetButton = document.getElementById('reset-button');
+        const mainTitleElement = document.getElementById('main-title');
+        const visitedInfoLabelElement = document.getElementById('visited-info-label');
+        const namePromptOverlay = document.getElementById('name-prompt-overlay');
+        const namePromptDialog = document.getElementById('name-prompt-dialog');
+        const nameInput = document.getElementById('name-input');
+        const namePromptButton = document.getElementById('name-prompt-button');
+
+        // --- D3 Map Setup Variables ---
+        let projection; // D3 map projection
+        let pathGenerator; // D3 path generator
+        let zoom; // D3 zoom behavior
+
+        // --- Three.js Globe Setup Variables ---
+        let globeScene, globeCamera, globeRenderer, globeControls, globeSphere, starField, raycaster;
+        let globeInitialized = false; // Flag: true if globe setup is complete
+        let globeNeedsTextureUpdate = false; // Flag: true if globe texture needs regeneration
+        let globeTextureCanvas = null; // Offscreen canvas for globe texture
+        let globeTextureContext = null; // Context for offscreen canvas
+        let globeTexture = null; // The Three.js texture object
+        const GLOBE_TEXTURE_SIZE = 2048; // Power of 2 for texture performance
+
+        // === INITIALIZATION & DATA LOADING ===
+
+        /**
+         * Initializes the application: loads data, sets up views and event listeners.
+         */
+        async function initializeApp() {
+            subtitleElement.textContent = 'Loading exploration data...';
+            try {
+                // Load map topology and country name data in parallel
+                const [worldData, countryNameData] = await Promise.all([
+                    d3.json(MAP_DATA_URL),
+                    d3.tsv(COUNTRY_NAMES_URL)
+                ]);
+                console.log("Atlasphere Systems: Map data loaded.");
+
+                // Process country name data into maps
+                countryNameData.forEach(d => {
+                    // Ensure required fields exist (iso_n3 is the ID from topojson)
+                    if (d.iso_n3 && d.name) {
+                        const id = d.iso_n3.padStart(3, '0'); // Pad ID for consistency
+                        // Use ISO A3 from our map if available, otherwise try from TSV (less reliable)
+                        const iso_a3 = Object.keys(iso3to2Map).find(key => countryIdMap[key] === id) || d.iso_a3; // Attempt lookup
+                        countryNameMap[id] = d.name;
+                        if (iso_a3) {
+                            countryIdMap[id] = iso_a3;
+                        } else {
+                             // console.warn(`Missing ISO A3 for ID ${id} (${d.name})`);
+                        }
+                    }
+                });
+
+                // Convert TopoJSON to GeoJSON features
+                const allFeatures = topojson.feature(worldData, worldData.objects.countries).features;
+                // Filter out features without valid IDs/names/A3 codes (e.g., Antarctica, null IDs)
+                countryFeatures = allFeatures.filter(d =>
+                    d.id &&
+                    countryNameMap[d.id] &&
+                    countryIdMap[d.id] && // Check if we have an A3 code
+                    iso3to2Map[countryIdMap[d.id]] && // Check if we have an A2 mapping for the A3
+                    countryNameMap[d.id] !== 'Antarctica'
+                );
+                // Add name and ISO A3 code to feature properties
+                countryFeatures.forEach(d => {
+                    d.properties = d.properties || {};
+                    d.properties.name = countryNameMap[d.id];
+                    d.properties.iso_a3 = countryIdMap[d.id];
+                    d.properties.iso_a2 = iso3to2Map[countryIdMap[d.id]]; // Add A2 code
+                });
+                totalCountries = countryFeatures.length;
+                console.log(`Atlasphere Systems: ${totalCountries} valid countries identified.`);
+
+                // Initialize UI components and load state
+                initializeMapView();
+                setupViewSwitcher();
+                setupDownloadButton();
+                setupResetButton();
+                setupNamePrompt(); // Setup listener for name prompt
+                loadState(); // Load visited countries AND user name from localStorage
+
+                // Initial UI update based on loaded state
+                updateVisitedInfo();
+                updateTitles(); // Update titles based on loaded name (calls switchView internally)
+
+                // Apply initial styles AFTER drawing countries
+                applyInitialMapStyles();
+
+                mapSvg.call(zoom.transform, d3.zoomIdentity); // Reset zoom initially
+                window.addEventListener('resize', handleResize); // Handle window resizing
+
+            } catch (error) {
+                // Handle errors during data loading
+                console.error("ERROR: Failed to load map data.", error);
+                if (mapContainer) {
+                    mapContainer.innerHTML = `<p class='text-red-500 text-center p-4'>Error: Map data could not be loaded. Please check your connection and refresh.</p>`;
+                }
+                 if (subtitleElement) {
+                    subtitleElement.textContent = 'Map Initialization Failed.';
+                }
+            }
+        }
+
+        /**
+         * Initializes the D3 map view components (projection, zoom, drawing).
+         */
+        function initializeMapView() {
+            initializeProjection();
+            initializeZoom();
+            drawCountries(); // Draw paths first
+            console.log("Map View Initialized.");
+        }
+
+        /**
+         * Sets up the D3 Mercator projection and path generator.
+         */
+        function initializeProjection() {
+            // Scale projection based on initial SVG width
+            projection = d3.geoMercator()
+                .scale(INITIAL_SVG_WIDTH / (2 * Math.PI) * 0.95) // Adjust scale factor
+                .translate([INITIAL_SVG_WIDTH / 2, INITIAL_SVG_HEIGHT / 1.5]); // Center map
+            pathGenerator = d3.geoPath().projection(projection);
+        }
+
+        /**
+         * Sets up the D3 zoom behavior for the map.
+         */
+        function initializeZoom() {
+            zoom = d3.zoom()
+                .scaleExtent([MIN_ZOOM, MAX_ZOOM]) // Min/max zoom levels
+                // Limit panning extent slightly beyond initial view
+                .translateExtent([[-INITIAL_SVG_WIDTH * 0.5, -INITIAL_SVG_HEIGHT * 0.5], [INITIAL_SVG_WIDTH * 1.5, INITIAL_SVG_HEIGHT * 1.5]])
+                .on("start", handleZoomStart) // On zoom start event
+                .on("zoom", handleZoom)       // On zoom event
+                .on("end", handleZoomEnd);     // On zoom end event
+            mapSvg.call(zoom)
+                 .on("dblclick.zoom", null); // Disable double-click zoom
+        }
+
+        /**
+         * Draws the country paths onto the SVG map.
+         */
+        function drawCountries() {
+            mapGroup.selectAll(".country")
+                .data(countryFeatures, d => d.id) // Use country ID as key
+                .join("path") // Use join for enter/update/exit
+                .attr("class", "country")
+                .attr("data-country-id", d => d.id)
+                .attr("data-country-name", d => d.properties.name)
+                .attr("data-iso-a2", d => d.properties.iso_a2.toLowerCase()) // Store lowercase a2 for flag URL
+                .attr("d", pathGenerator) // Generate path data
+                // Attach event listeners
+                .on("mouseover", handleMouseOver)
+                .on("mousemove", handleMouseMove)
+                .on("mouseout", handleMouseOut)
+                .on("mousedown", handleMouseDown)
+                .on("mouseup", handleMouseUp)
+                .on("click", handleCountryClick); // Unified click handler
+
+            console.log("Country boundaries rendered:", mapGroup.selectAll(".country").size());
+        }
+
+        /**
+         * Applies initial 'visited' styles (flags) after countries are drawn and state is loaded.
+         */
+        function applyInitialMapStyles() {
+            mapGroup.selectAll(".country")
+                .each(function(d) {
+                    const countryElement = d3.select(this);
+                    if (visitedCountries.has(d.id)) {
+                        applyFlagPattern(countryElement, d.id, d.properties.iso_a2);
+                    } else {
+                        removeFlagPattern(countryElement, d.id); // Ensure non-visited are default
+                    }
+                });
+             // Ensure globe texture reflects loaded state if globe view is active or becomes active
+            globeNeedsTextureUpdate = true;
+            if (activeView === 'globe-view' && globeInitialized) {
+                updateGlobeTexture();
+            }
+        }
+
+
+        // === VIEW SWITCHING ===
+
+        /**
+         * Sets up the event listener for the view switcher tabs.
+         */
+        function setupViewSwitcher() {
+            viewTabs.addEventListener('click', (event) => {
+                // Check if a tab button was clicked and it's not already active
+                if (event.target.classList.contains('tab-button') && !event.target.classList.contains('active')) {
+                    const viewId = event.target.getAttribute('data-view');
+                    switchView(viewId);
+                }
+            });
+        }
+
+        /**
+         * Switches the active view between the map and the globe.
+         * @param {string} viewId - The ID of the view to switch to ('map-view' or 'globe-view').
+         */
+        function switchView(viewId) {
+            // No change needed if already active and globe is initialized (or not globe view)
+            if (activeView === viewId && (viewId !== 'globe-view' || globeInitialized)) return;
+
+            // Pause globe animation if switching away from it
+            if (activeView === 'globe-view' && globeAnimationId) {
+                cancelAnimationFrame(globeAnimationId);
+                globeAnimationId = null;
+                console.log("3D Globe simulation paused.");
+            }
+
+            activeView = viewId;
+
+            // Update tab button styles
+            viewTabs.querySelectorAll('.tab-button').forEach(button => {
+                button.classList.toggle('active', button.getAttribute('data-view') === viewId);
+            });
+
+            // Toggle visibility of view panels
+            mapViewPanel.classList.toggle('active', viewId === 'map-view');
+            globeViewPanel.classList.toggle('active', viewId === 'globe-view');
+
+            // Update subtitle based on active view and user name
+            updateSubtitle();
+
+            // Initialize or resume globe animation if switching to globe view
+            if (viewId === 'globe-view') {
+                // Use requestAnimationFrame to ensure layout is calculated before globe setup
+                requestAnimationFrame(() => {
+                    if (!globeInitialized) {
+                        setupGlobeScene(); // Initialize globe if first time
+                    } else {
+                         handleResize(); // Ensure correct size on switch
+                         if (!globeAnimationId) {
+                            animateGlobe(); // Resume animation if paused
+                            console.log("3D Globe simulation resumed.");
+                         }
+                         // Always mark for update when switching to globe view
+                         // to ensure highlights are correct
+                         globeNeedsTextureUpdate = true;
+                         updateGlobeTexture(); // Trigger immediate update if possible
+                    }
+                });
+            }
+            console.log(`View switched to: ${viewId}`);
+        }
+
+        // === MAP VIEW EVENT HANDLERS ===
+
+        /** Handles the start of a D3 zoom/pan event. */
+        function handleZoomStart() {
+            tooltip.style("display", "none"); // Hide tooltip during zoom
+            mapContainer.style.cursor = 'grabbing'; // Change cursor
+        }
+
+        /** Handles the D3 zoom/pan event, transforming the map group. */
+        function handleZoom(event) {
+            currentTransform = event.transform;
+            mapGroup.attr("transform", currentTransform); // Apply transform to map group
+
+            // Adjust stroke width based on zoom level for better visibility
+            const k = currentTransform.k; // Current scale factor
+            const baseStrokeWidth = Math.max(0.1, 0.6 / k); // Clamp min stroke width
+            const visitedStrokeWidth = Math.max(0.2, 0.8 / k); // Clamp min stroke width
+
+            mapGroup.selectAll(".country:not(.visited)").style("stroke-width", baseStrokeWidth);
+            mapGroup.selectAll(".country.visited").style("stroke-width", visitedStrokeWidth);
+        }
+
+        /** Handles the end of a D3 zoom/pan event. */
+        function handleZoomEnd() {
+            mapContainer.style.cursor = 'grab'; // Restore cursor
+        }
+
+        /** Shows the tooltip on country mouseover. */
+        function handleMouseOver(event, d) {
+            const name = d.properties?.name;
+            // Show tooltip only if country has a valid name
+            if (name && name !== 'Unknown') {
+                tooltip.html(`${name}`) // Set tooltip content
+                       .style("display", "block"); // Make tooltip visible
+                handleMouseMove(event); // Position tooltip initially
+            }
+             // Optional: Slightly highlight on hover even if visited
+            // d3.select(event.currentTarget).raise(); // Bring to front
+        }
+
+        /** Updates the tooltip position on mouse move. */
+        function handleMouseMove(event) {
+            // Position tooltip slightly offset from the cursor
+            // Consider map container boundaries to prevent tooltip going off-screen
+            const mapBounds = mapContainer.getBoundingClientRect();
+            const x = Math.min(event.pageX + 15, mapBounds.right - tooltip.node().offsetWidth - 5);
+            const y = Math.min(event.pageY + 10, mapBounds.bottom - tooltip.node().offsetHeight - 5);
+
+            tooltip.style("left", x + "px")
+                   .style("top", y + "px");
+        }
+
+        /** Hides the tooltip on country mouseout. */
+        function handleMouseOut(event) {
+            tooltip.style("display", "none");
+             // Optional: Reset any hover effect
+            // d3.select(event.currentTarget); //.lower(); // Send back if raised
+        }
+
+        /** Adds a 'pressed' visual state on mouse down (only for non-visited). */
+        function handleMouseDown(event, d) {
+            if (d?.properties?.name && d.properties.name !== 'Unknown' && !visitedCountries.has(d.id)) {
+                 d3.select(event.currentTarget).classed("pressed", true);
+            }
+            tooltip.style("display", "none"); // Hide tooltip on press
+            event.preventDefault(); // Prevent text selection/dragging issues
+        }
+
+        /** Removes the 'pressed' visual state on mouse up. */
+        function handleMouseUp(event) {
+            d3.select(event.currentTarget).classed("pressed", false);
+        }
+
+        /**
+         * Handles the click event on a country path (SVG Map).
+         * Toggles visited status or shows name prompt if first click.
+         */
+        function handleCountryClick(event, d) {
+            // Ignore clicks that are part of a drag/zoom gesture
+            if (event.defaultPrevented) return;
+
+            // Check if this is the very first country click AND name hasn't been entered
+            if (!isNameEntered && visitedCountries.size === 0) {
+                firstClickData = { source: 'map', event, d }; // Store click data for later
+                showNamePrompt(); // Show the name input dialog
+                return; // Stop processing until name is entered
+            }
+
+            // Normal country click logic (if name is already entered or it's not the first click)
+            processCountryToggle(d.id, d.properties?.iso_a2); // Pass ID and A2 code
+        }
+
+        // === FLAG PATTERN MANAGEMENT (SVG MAP) ===
+
+        /**
+         * Applies the flag pattern fill to a specific country SVG element.
+         * Creates the pattern definition if it doesn't exist.
+         * @param {d3.Selection} countryElement - The D3 selection of the country path.
+         * @param {string} countryId - The ISO n3 ID of the country.
+         * @param {string} isoA2 - The ISO a2 code of the country.
+         */
+        function applyFlagPattern(countryElement, countryId, isoA2) {
+            if (!isoA2 || flagLoadErrors.has(countryId)) { // Don't apply if no A2 or flag previously failed
+                countryElement.style("fill", flagLoadErrors.has(countryId) ? 'var(--flag-error-fill)' : 'var(--flag-fallback-fill)'); // Fallback color
+                countryElement.classed("visited", true);
+                countryElement.classed("flag-error", flagLoadErrors.has(countryId));
+                return;
+            }
+
+            const patternId = `pattern-${countryId}`;
+            const flagSvgUrl = FLAG_SVG_URL_TEMPLATE.replace('{iso_a2_lower}', isoA2.toLowerCase());
+
+            // Check if pattern already exists
+            let pattern = flagPatternsGroup.select(`#${patternId}`);
+            if (pattern.empty()) {
+                // Create the pattern
+                pattern = flagPatternsGroup.append("pattern")
+                    .attr("id", patternId)
+                    .attr("patternUnits", "objectBoundingBox") // Relative to the shape's bounding box
+                    .attr("width", 1) // Covers 100% width of bbox
+                    .attr("height", 1) // Covers 100% height of bbox
+                    // Preserve aspect ratio is handled by the image inside
+                    .attr("viewBox", "0 0 1 1") // Needed for objectBoundingBox scaling
+                    .attr("preserveAspectRatio", "none"); // Pattern itself doesn't preserve
+
+                pattern.append("rect") // Optional background for the pattern tile itself
+                    .attr("width", 1)
+                    .attr("height", 1)
+                    .attr("fill", "var(--bg-tertiary)"); // Background while flag loads or if transparent
+
+                pattern.append("image")
+                    .attr("class", "flag-pattern")
+                    .attr("xlink:href", flagSvgUrl)
+                    .attr("x", 0)
+                    .attr("y", 0)
+                    .attr("width", 1) // Image covers pattern width
+                    .attr("height", 1) // Image covers pattern height
+                    .attr("preserveAspectRatio", "xMidYMid slice") // Center, cover, crop
+                    .on("error", function() { // Handle flag loading error
+                        console.error(`Failed to load flag SVG: ${flagSvgUrl}`);
+                        flagLoadErrors.add(countryId); // Mark this flag as failed
+                        // Remove the broken image and pattern
+                        d3.select(this.parentNode).remove();
+                        // Re-apply style with error fill
+                        countryElement.style("fill", 'var(--flag-error-fill)')
+                                      .classed("visited", true)
+                                      .classed("flag-error", true);
+                        // Potentially trigger globe update if needed
+                        globeNeedsTextureUpdate = true;
+                    });
+            }
+
+            // Apply the pattern fill
+            countryElement.style("fill", `url(#${patternId})`);
+            countryElement.classed("visited", true);
+            countryElement.classed("flag-error", false); // Ensure error class is removed if previously set
+        }
+
+        /**
+         * Removes the flag pattern fill and resets the style of a country SVG element.
+         * Removes the corresponding pattern definition.
+         * @param {d3.Selection} countryElement - The D3 selection of the country path.
+         * @param {string} countryId - The ISO n3 ID of the country.
+         */
+        function removeFlagPattern(countryElement, countryId) {
+            const patternId = `pattern-${countryId}`;
+
+            // Reset fill to default CSS value
+            countryElement.style("fill", null); // Use CSS default (--bg-tertiary)
+            countryElement.classed("visited", false);
+            countryElement.classed("flag-error", false);
+
+            // Remove the pattern definition from <defs>
+            flagPatternsGroup.select(`#${patternId}`).remove();
+            flagLoadErrors.delete(countryId); // Clear any previous error state
+        }
+
+
+        // === GLOBE VIEW (THREE.JS) ===
+
+        /**
+         * Sets up the initial Three.js scene, camera, renderer, controls, and objects.
+         */
+        function setupGlobeScene() {
+            // Prevent re-initialization
+            if (globeInitialized) return;
+            console.log("Initializing 3D Globe...");
+            globeLoadingIndicator.style.display = 'block'; // Show loading indicator
+
+            // Get container dimensions
+            const width = globeContainer.clientWidth;
+            const height = globeContainer.clientHeight;
+
+            // If dimensions are zero (e.g., container not visible yet), retry shortly
+            if (width === 0 || height === 0) {
+                console.warn("Globe container dimensions unavailable. Retrying...");
+                setTimeout(setupGlobeScene, 100); // Retry after 100ms
+                return;
+            }
+
+            try {
+                // Scene
+                globeScene = new THREE.Scene();
+                raycaster = new THREE.Raycaster(); // For click detection
+
+                // Camera
+                const aspect = width / height;
+                globeCamera = new THREE.PerspectiveCamera(50, aspect, 0.1, 1000); // FOV slightly reduced
+                globeCamera.position.z = 3.5; // Start slightly further back
+
+                // Renderer
+                globeRenderer = new THREE.WebGLRenderer({
+                    canvas: globeCanvas, // Use existing canvas element
+                    antialias: true,     // Smoother edges
+                    alpha: true          // Allow transparency for background
+                });
+                globeRenderer.setSize(width, height); // Set size
+                globeRenderer.setPixelRatio(window.devicePixelRatio); // Adjust for high-DPI screens
+
+                // Lighting
+                globeScene.add(new THREE.AmbientLight(0xaaaaaa, 0.8)); // Softer ambient
+                const dirLight = new THREE.DirectionalLight(0xffffff, 0.9);
+                dirLight.position.set(5, 3, 5);
+                globeScene.add(dirLight);
+
+                // Starfield Background
+                createStarfield();
+
+                // Offscreen Canvas for Texture
+                globeTextureCanvas = document.createElement('canvas');
+                globeTextureCanvas.width = GLOBE_TEXTURE_SIZE;
+                globeTextureCanvas.height = GLOBE_TEXTURE_SIZE / 2; // Equirectangular aspect ratio
+                globeTextureContext = globeTextureCanvas.getContext('2d');
+
+                // Globe Sphere Mesh
+                const geometry = new THREE.SphereGeometry(1, 64, 64); // Increased segments for smoother UV mapping
+                globeTexture = new THREE.CanvasTexture(globeTextureCanvas); // Create texture from canvas
+                globeTexture.needsUpdate = true; // Initial update needed
+
+                const material = new THREE.MeshPhongMaterial({
+                    map: globeTexture,
+                    color: 0xffffff,
+                    specular: 0x222222, // Slightly more specular
+                    shininess: 15,      // Slightly shinier
+                    transparent: false,
+                });
+                globeSphere = new THREE.Mesh(geometry, material);
+                globeScene.add(globeSphere);
+
+                // Orbit Controls (for user interaction)
+                globeControls = new THREE.OrbitControls(globeCamera, globeRenderer.domElement);
+                globeControls.enableDamping = true;
+                globeControls.dampingFactor = 0.05;
+                globeControls.enablePan = false;
+                globeControls.minDistance = 1.8; // Adjusted min distance
+                globeControls.maxDistance = 10;  // Adjusted max distance
+                globeControls.rotateSpeed = 0.4;
+                globeControls.zoomSpeed = 0.8;
+                globeControls.autoRotate = true;
+                globeControls.autoRotateSpeed = 0.5; // Slower auto-rotate
+
+                // Add click listener to the canvas
+                globeRenderer.domElement.addEventListener('click', handleGlobeClick, false);
+
+
+                // Mark initialization complete and trigger first texture update
+                globeInitialized = true;
+                globeNeedsTextureUpdate = true; // Signal initial texture draw needed
+                updateGlobeTexture(); // Perform initial texture draw
+
+                // Start the animation loop if not already running
+                if (!globeAnimationId) {
+                    animateGlobe();
+                }
+                handleResize(); // Ensure correct sizing
+                console.log("3D Globe Initialized.");
+
+            } catch (error) {
+                // Handle errors during Three.js setup
+                console.error("ERROR: Failed to initialize 3D Globe.", error);
+                if (globeContainer) {
+                    globeContainer.innerHTML = `<p class='text-red-500 text-center p-4'>Error: 3D Globe failed to load.</p>`;
+                }
+            } finally {
+                // Hide loading indicator regardless of success/failure
+                globeLoadingIndicator.style.display = 'none';
+            }
+        }
+
+        /**
+         * Creates a starfield background using THREE.Points.
+         */
+        function createStarfield() {
+            const starQty = 10000; // More stars
+            const positions = new Float32Array(starQty * 3);
+            const colors = new Float32Array(starQty * 3);
+            const color = new THREE.Color();
+
+            for (let i = 0; i < starQty; i++) {
+                const i3 = i * 3;
+                const radius = 200 + Math.random() * 300; // Further out
+                const theta = Math.random() * Math.PI * 2;
+                const phi = Math.acos((Math.random() * 2) - 1);
+                positions[i3]     = radius * Math.sin(phi) * Math.cos(theta);
+                positions[i3 + 1] = radius * Math.sin(phi) * Math.sin(theta);
+                positions[i3 + 2] = radius * Math.cos(phi);
+
+                color.setHSL(Math.random() * 0.1 + 0.55, 0.3, Math.random() * 0.4 + 0.5); // Bluish/white stars
+                colors[i3]     = color.r;
+                colors[i3 + 1] = color.g;
+                colors[i3 + 2] = color.b;
+            }
+
+            const geometry = new THREE.BufferGeometry();
+            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+            const material = new THREE.PointsMaterial({
+                size: 1.0, // Slightly larger stars
+                blending: THREE.AdditiveBlending,
+                depthWrite: false,
+                transparent: true,
+                opacity: 0.8,
+                vertexColors: true
+            });
+
+            starField = new THREE.Points(geometry, material);
+            globeScene.add(starField);
+        }
+
+         /**
+         * Handles click events on the globe canvas for country selection.
+         */
+        function handleGlobeClick(event) {
+            if (!globeInitialized || !raycaster || !globeCamera || !globeSphere || countryFeatures.length === 0) return;
+
+            // Calculate mouse position in normalized device coordinates (-1 to +1)
+            const rect = globeRenderer.domElement.getBoundingClientRect();
+            const mouse = new THREE.Vector2();
+            mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+            mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+            // Update the picking ray with the camera and mouse position
+            raycaster.setFromCamera(mouse, globeCamera);
+
+            // Calculate objects intersecting the picking ray
+            const intersects = raycaster.intersectObject(globeSphere);
+
+            if (intersects.length > 0) {
+                const intersect = intersects[0];
+                const point = intersect.point; // Intersection point in 3D space
+
+                // Convert 3D intersection point to spherical coordinates (lat/lon)
+                // Assuming sphere radius is 1 and centered at origin
+                const radius = 1;
+                // Latitude: Angle from the XZ plane (asin(y/radius))
+                // Convert from radians to degrees. Note: Three.js Y is up, geographical latitude is often measured from equator.
+                const latitude = Math.asin(point.y / radius) * (180 / Math.PI);
+                // Longitude: Angle from the positive Z axis in the XZ plane (atan2(x, z))
+                // Convert from radians to degrees.
+                const longitude = Math.atan2(point.x, point.z) * (180 / Math.PI);
+
+                // Find which country contains this lat/lon point
+                const clickedCountry = countryFeatures.find(feature => {
+                    // d3.geoContains expects [longitude, latitude]
+                    return d3.geoContains(feature, [longitude, latitude]);
+                });
+
+                if (clickedCountry) {
+                    console.log(`Globe Click: ${clickedCountry.properties.name} (${latitude.toFixed(2)}, ${longitude.toFixed(2)})`);
+
+                     // Check if this is the very first country click AND name hasn't been entered
+                    if (!isNameEntered && visitedCountries.size === 0) {
+                        firstClickData = { source: 'globe', d: clickedCountry }; // Store click data
+                        showNamePrompt(); // Show the name input dialog
+                        return; // Stop processing until name is entered
+                    }
+
+                    // Process the toggle
+                    processCountryToggle(clickedCountry.id, clickedCountry.properties.iso_a2);
+
+                } else {
+                    // console.log("Globe Click: Ocean or no country found at point.");
+                }
+            }
+        }
+
+
+        /**
+         * Updates the texture applied to the globe sphere, drawing base map and visited country flags.
+         * Uses an offscreen canvas (globeTextureCanvas).
+         */
+        function updateGlobeTexture() {
+            // Ensure globe is initialized, data is available, and context exists
+            if (!globeInitialized || !countryFeatures.length || !globeSphere || !globeTextureContext) {
+                // console.warn("Globe texture update skipped: prerequisites not met.");
+                globeNeedsTextureUpdate = false; // Reset flag if skipped
+                return;
+            }
+            console.log("Updating globe texture...");
+
+            try {
+                const ctx = globeTextureContext;
+                const canvas = globeTextureCanvas;
+
+                // Get computed colors from CSS variables for theming
+                const oceanColor = getComputedStyle(document.documentElement).getPropertyValue('--globe-ocean').trim() || '#080a10';
+                const landColor = getComputedStyle(document.documentElement).getPropertyValue('--globe-land').trim() || '#252830';
+                const landOutlineColor = getComputedStyle(document.documentElement).getPropertyValue('--globe-land-outline').trim() || '#404550';
+                const visitedOutlineColor = getComputedStyle(document.documentElement).getPropertyValue('--globe-visited-outline').trim() || '#66ccff';
+                const flagErrorFill = getComputedStyle(document.documentElement).getPropertyValue('--flag-error-fill').trim() || '#444444';
+
+                // 1. Clear canvas and fill background with ocean color
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = oceanColor;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                // 2. Setup D3 projection and path generator for the texture canvas
+                const textureProjection = d3.geoEquirectangular()
+                    .fitSize([canvas.width, canvas.height], { type: "Sphere" }); // Fit projection to canvas
+                const texturePathGenerator = d3.geoPath()
+                    .projection(textureProjection)
+                    .context(ctx); // Draw directly onto canvas context
+
+                // 3. Draw ALL countries with base land color and outline
+                ctx.beginPath(); // Start path for all countries
+                texturePathGenerator({type: "FeatureCollection", features: countryFeatures}); // Generate path data
+                ctx.fillStyle = landColor;
+                ctx.fill(); // Fill landmasses
+                ctx.strokeStyle = landOutlineColor;
+                ctx.lineWidth = 0.5; // Fine outline for base map
+                ctx.stroke(); // Draw outlines
+
+                // 4. Draw visited countries highlighted ON TOP with flags
+                const visitedFeatures = countryFeatures.filter(f => visitedCountries.has(f.id));
+
+                // Use Promise.all to load all necessary flags concurrently
+                const flagPromises = visitedFeatures.map(feature => {
+                    const isoA2 = feature.properties.iso_a2;
+                    const countryId = feature.id;
+
+                    // Skip if no A2 code or if flag previously failed
+                    if (!isoA2 || flagLoadErrors.has(countryId)) {
+                        return Promise.resolve({ feature, img: null, error: true }); // Resolve immediately for error/skip case
+                    }
+
+                    const flagUrl = FLAG_URL_TEMPLATE.replace('{iso_a2_lower}', isoA2.toLowerCase());
+
+                    // Return cached image if available
+                    if (flagImageCache[flagUrl]) {
+                        return Promise.resolve({ feature, img: flagImageCache[flagUrl], error: false });
+                    }
+
+                    // Load image
+                    return new Promise((resolve) => {
+                        const img = new Image();
+                        img.crossOrigin = "Anonymous"; // Needed for canvas tainting if using external source
+                        img.onload = () => {
+                            flagImageCache[flagUrl] = img; // Cache successful load
+                            resolve({ feature, img, error: false });
+                        };
+                        img.onerror = () => {
+                            console.error(`Failed to load flag PNG: ${flagUrl}`);
+                            flagLoadErrors.add(countryId); // Mark as failed
+                            resolve({ feature, img: null, error: true }); // Resolve with error flag
+                        };
+                        img.src = flagUrl;
+                    });
+                });
+
+                // Once all flags are loaded (or failed)
+                Promise.all(flagPromises).then(results => {
+                    results.forEach(({ feature, img, error }) => {
+                        ctx.beginPath(); // Begin path for this specific country
+                        texturePathGenerator(feature); // Generate path data for the country
+
+                        if (error || !img) {
+                            // Fill with error color if flag failed or skipped
+                            ctx.fillStyle = flagErrorFill;
+                            ctx.fill();
+                            // Optionally add outline for error state
+                            ctx.strokeStyle = landOutlineColor; // Use base outline
+                            ctx.lineWidth = 0.7;
+                            ctx.stroke();
+                        } else {
+                            // Draw the flag image clipped to the country shape
+                            ctx.save(); // Save context state
+                            ctx.clip(); // Clip subsequent drawing to the country path
+
+                            // Calculate bounding box and center/scale image (xMidYMid slice)
+                            const bounds = texturePathGenerator.bounds(feature); // [[x0, y0], [x1, y1]]
+                            const boundsWidth = bounds[1][0] - bounds[0][0];
+                            const boundsHeight = bounds[1][1] - bounds[0][1];
+
+                            if (boundsWidth > 0 && boundsHeight > 0) {
+                                const imgAspect = img.naturalWidth / img.naturalHeight;
+                                const boundsAspect = boundsWidth / boundsHeight;
+                                let drawWidth, drawHeight, dx, dy;
+
+                                if (imgAspect > boundsAspect) { // Image wider than bounds aspect
+                                    drawHeight = boundsHeight;
+                                    drawWidth = drawHeight * imgAspect;
+                                    dx = bounds[0][0] - (drawWidth - boundsWidth) / 2; // Center horizontally
+                                    dy = bounds[0][1];
+                                } else { // Image taller than bounds aspect (or equal)
+                                    drawWidth = boundsWidth;
+                                    drawHeight = drawWidth / imgAspect;
+                                    dx = bounds[0][0];
+                                    dy = bounds[0][1] - (drawHeight - boundsHeight) / 2; // Center vertically
+                                }
+
+                                try {
+                                    ctx.drawImage(img, dx, dy, drawWidth, drawHeight);
+                                } catch (drawError) {
+                                    console.error(`Error drawing flag for ${feature.properties.name}:`, drawError);
+                                    // Fill with error color as fallback if drawImage fails
+                                    ctx.fillStyle = flagErrorFill;
+                                    ctx.fill();
+                                }
+                            } else {
+                                // If bounds are invalid, fill with error color
+                                ctx.fillStyle = flagErrorFill;
+                                ctx.fill();
+                            }
+
+                            ctx.restore(); // Restore context state (remove clipping path)
+
+                            // Draw outline ON TOP of the flag/clip area
+                            ctx.strokeStyle = visitedOutlineColor;
+                            ctx.lineWidth = 0.8; // Slightly thicker outline for visited
+                            ctx.stroke(); // Stroke the country path again for the outline
+                        }
+                    });
+
+                    // 5. Update the Three.js texture
+                    if (globeSphere && globeSphere.material.map) {
+                        globeSphere.material.map.needsUpdate = true; // Signal texture needs upload to GPU
+                    }
+                    console.log("Globe texture updated with flags.");
+
+                }).catch(loadError => {
+                    console.error("Error loading one or more flags for globe:", loadError);
+                });
+
+            } catch (error) {
+                console.error("Error during globe texture update:", error);
+            } finally {
+                // Mark update as complete, even if there were errors in promises
+                globeNeedsTextureUpdate = false;
+            }
+        }
+
+
+        /**
+         * The main animation loop for the Three.js globe.
+         */
+        function animateGlobe() {
+            // Stop loop if globe is not initialized or scene doesn't exist
+            if (!globeInitialized || !globeScene) {
+                globeAnimationId = null;
+                return;
+            }
+            // Request the next frame
+            globeAnimationId = requestAnimationFrame(animateGlobe);
+
+            // Update globe texture if flagged (might be set by click handlers)
+            // Note: Actual drawing happens async in updateGlobeTexture's Promise.all
+            if (globeNeedsTextureUpdate) {
+                 updateGlobeTexture(); // This initiates the update process
+            }
+
+            // Update controls (handles damping, auto-rotation)
+            if (globeControls) globeControls.update();
+
+            // Slowly rotate starfield for a dynamic background effect
+            if (starField) {
+                starField.rotation.y += 0.0001; // Slower rotation
+            }
+
+            // Render the scene from the camera's perspective
+            if (globeRenderer && globeScene && globeCamera) {
+                globeRenderer.render(globeScene, globeCamera);
+            }
+        }
+
+        // === NAME PROMPT LOGIC ===
+
+        /** Shows the name prompt modal dialog. */
+        function showNamePrompt() {
+            if (namePromptOverlay) {
+                namePromptOverlay.style.display = 'flex'; // Use flex to center dialog
+                if (nameInput) nameInput.focus(); // Focus the input field for convenience
+            }
+        }
+
+        /** Hides the name prompt modal dialog. */
+        function hideNamePrompt() {
+            if (namePromptOverlay) {
+                namePromptOverlay.style.display = 'none';
+            }
+        }
+
+        /** Sets up event listeners for the name prompt dialog. */
+        function setupNamePrompt() {
+            if (!namePromptButton || !nameInput) return; // Ensure elements exist
+
+            // Handle click on the "Begin Journey" button
+            namePromptButton.addEventListener('click', () => {
+                const enteredName = nameInput.value.trim(); // Get trimmed name
+                if (enteredName) {
+                    // Name entered successfully
+                    userName = enteredName;
+                    isNameEntered = true;
+                    localStorage.setItem('atlasphereUserName', userName); // Save name to localStorage
+                    updateTitles(); // Update UI titles (includes subtitle via switchView)
+                    hideNamePrompt(); // Close the dialog
+
+                    // If a country click triggered the prompt, process it now
+                    if (firstClickData) {
+                        const { source, d } = firstClickData;
+                        processCountryToggle(d.id, d.properties?.iso_a2);
+                        firstClickData = null; // Clear the stored click data
+                    }
+                    // Enable reset button if conditions met
+                     updateVisitedInfo();
+                } else {
+                    // Optional: Provide feedback if name is empty
+                    nameInput.style.borderColor = 'red'; // Simple visual feedback
+                    // Remove feedback after a short delay
+                    setTimeout(() => { if(nameInput) nameInput.style.borderColor = ''; }, 1500);
+                }
+            });
+
+            // Allow submitting the name by pressing Enter in the input field
+            nameInput.addEventListener('keypress', (event) => {
+                if (event.key === 'Enter') {
+                    event.preventDefault(); // Prevent potential form submission
+                    namePromptButton.click(); // Trigger button click programmatically
+                }
+            });
+        }
+
+        // === CORE LOGIC: COUNTRY TOGGLE & UI UPDATES ===
+
+        /**
+         * Processes the logic for adding/removing a country from the visited set
+         * and updating the UI (map, globe, info panel) accordingly.
+         * @param {string} countryId - The ISO n3 ID of the country to toggle.
+         * @param {string} isoA2 - The ISO a2 code for flag lookup.
+         */
+        function processCountryToggle(countryId, isoA2) {
+            // Ignore clicks on invalid features (should be pre-filtered, but double-check)
+            const name = countryNameMap[countryId];
+            if (!countryId || !name || name === 'Unknown') {
+                console.warn(`Toggle ignored for invalid country ID: ${countryId}`);
+                return;
+            }
+
+            let changed = false; // Flag to track if state changed
+
+            // Find the corresponding SVG element for map updates
+            const countryElement = mapGroup.select(`.country[data-country-id="${countryId}"]`);
+
+            // Toggle visited status
+            if (visitedCountries.has(countryId)) {
+                // --- Remove country ---
+                visitedCountries.delete(countryId);
+                if (!countryElement.empty()) {
+                    removeFlagPattern(countryElement, countryId); // Remove flag from map
+                }
+                changed = true;
+                console.log(`Removed: ${name}`);
+            } else {
+                // --- Add country ---
+                visitedCountries.add(countryId);
+                if (!countryElement.empty()) {
+                    applyFlagPattern(countryElement, countryId, isoA2); // Apply flag to map
+                }
+                changed = true;
+                console.log(`Added: ${name}`);
+            }
+
+            // If the visited set changed, update UI, save state, and flag globe update
+            if (changed) {
+                updateVisitedInfo(); // Update count, list, progress bar, buttons
+                saveState(); // Save to localStorage
+                globeNeedsTextureUpdate = true; // Signal the globe texture needs regeneration
+                 // If globe is currently active and initialized, trigger update immediately
+                if(activeView === 'globe-view' && globeInitialized) {
+                    updateGlobeTexture();
+                }
+            }
+
+            // Remove pressed state from map element if it exists
+            if (!countryElement.empty()) {
+                countryElement.classed("pressed", false);
+            }
+            tooltip.style("display", "none"); // Hide tooltip
+        }
+
+
+        /** Updates the main title and visited info label based on user name. */
+        function updateTitles() {
+            if (userName) {
+                mainTitleElement.textContent = `Atlasphere of ${userName}`;
+                visitedInfoLabelElement.textContent = `Countries Visited by ${userName}:`;
+            } else {
+                mainTitleElement.textContent = 'Atlasphere';
+                visitedInfoLabelElement.textContent = 'Countries Visited:';
+            }
+            // Update subtitle based on current view and name presence
+            updateSubtitle();
+        }
+
+        /** Updates the subtitle text based on the active view and user name. */
+        function updateSubtitle() {
+             const baseMapSubtitle = 'Interact with the World Map: Hover for name, click to toggle visited status.';
+             const baseGlobeSubtitle = 'Explore the 3D Globe: Drag to rotate, scroll to zoom, click country to toggle visited status.';
+             const namePrefix = userName ? `Welcome, ${userName}! ` : '';
+
+             subtitleElement.textContent = activeView === 'map-view'
+                 ? namePrefix + baseMapSubtitle
+                 : namePrefix + baseGlobeSubtitle;
+        }
+
+
+        /** Updates the visited count, progress bar, and visited countries list. */
+        function updateVisitedInfo() {
+            const count = visitedCountries.size;
+            visitedCountElement.textContent = count;
+
+            // Calculate and update progress bar
+            const percentage = totalCountries > 0 ? Math.round((count / totalCountries) * 100) : 0;
+            progressBar.style.width = `${percentage}%`; // <-- THIS LINE sets the loading bar size
+            progressBar.textContent = `${percentage}%`;
+            progressContainer.setAttribute('aria-valuenow', percentage);
+            progressContainer.title = `${count} of ${totalCountries} countries visited (${percentage}%)`;
+
+            // Update the list of visited countries
+            visitedListDiv.innerHTML = ''; // Clear previous list
+            if (count > 0) {
+                visitedListContainer.classList.remove('hidden'); // Show list container
+                const grouped = {}; // Object to group countries by continent
+
+                // Group visited countries by continent
+                visitedCountries.forEach(id => {
+                    const isoA3 = countryIdMap[id];
+                    const continent = countryContinentMap[isoA3] || 'Other Regions'; // Fallback continent
+                    const name = countryNameMap[id];
+                    if (name && name !== 'Unknown') { // Ensure valid name
+                        if (!grouped[continent]) {
+                            grouped[continent] = []; // Initialize array if first country in continent
+                        }
+                        grouped[continent].push(name);
+                    }
+                });
+
+                // Sort continents based on predefined order
+                const sortedContinents = Object.keys(grouped).sort((a, b) => {
+                    const indexA = continentOrder.indexOf(a);
+                    const indexB = continentOrder.indexOf(b);
+                    if (indexA === -1 && indexB === -1) return a.localeCompare(b); // Sort unknowns alphabetically
+                    if (indexA === -1) return 1; // Put unknowns at the end
+                    if (indexB === -1) return -1; // Put unknowns at the end
+                    return indexA - indexB; // Sort by predefined order
+                });
+
+
+                // Create HTML list for each continent
+                sortedContinents.forEach(continent => {
+                    const groupDiv = document.createElement('div');
+                    groupDiv.className = 'continent-group';
+
+                    const title = document.createElement('h4');
+                    title.className = 'continent-title';
+                    title.textContent = continent;
+                    groupDiv.appendChild(title);
+
+                    const list = document.createElement('ul');
+                    grouped[continent].sort((a, b) => a.localeCompare(b)); // Sort countries alphabetically
+                    grouped[continent].forEach(name => {
+                        const li = document.createElement('li');
+                        li.textContent = name;
+                        list.appendChild(li);
+                    });
+                    groupDiv.appendChild(list);
+                    visitedListDiv.appendChild(groupDiv); // Add continent group to main list div
+                });
+            } else {
+                visitedListContainer.classList.add('hidden'); // Hide list container if no countries visited
+            }
+
+            // Enable/disable action buttons based on state
+            downloadSummaryButton.disabled = count === 0;
+            // Reset button requires name entered OR at least one country visited (allow reset even if name not entered)
+            resetButton.disabled = count === 0 && !isNameEntered; // Can reset if name entered OR countries selected
+        }
+
+        /** Saves the current state (visited countries, user name) to localStorage. */
+        function saveState() {
+            try {
+                // Save visited countries array
+                localStorage.setItem('atlasphereVisitedCountries_v3', JSON.stringify(Array.from(visitedCountries)));
+                // Save user name if entered, otherwise remove it
+                if (userName) {
+                    localStorage.setItem('atlasphereUserName_v3', userName);
+                } else {
+                     localStorage.removeItem('atlasphereUserName_v3');
+                }
+                // console.log("State saved.");
+            } catch (e) {
+                // Handle potential storage errors (e.g., quota exceeded)
+                console.error("Could not save state:", e);
+                 // Use a more subtle notification instead of alert
+                 // Maybe add a small status indicator somewhere?
+            }
+        }
+
+        /** Loads state (visited countries, user name) from localStorage. */
+        function loadState() {
+            try {
+                // Load and parse visited countries
+                const savedVisited = localStorage.getItem('atlasphereVisitedCountries_v3');
+                if (savedVisited) {
+                    const parsedVisited = JSON.parse(savedVisited);
+                    // Clear existing set before loading
+                    visitedCountries.clear();
+                    // Add loaded IDs to the Set, ensuring they are valid country IDs we know
+                    parsedVisited.forEach(id => {
+                        if (countryNameMap[id] && countryIdMap[id] && iso3to2Map[countryIdMap[id]]) { // Check validity
+                             visitedCountries.add(id);
+                        } else {
+                            console.warn(`Loaded invalid/unknown country ID from storage: ${id}`);
+                        }
+                    });
+                    console.log(`Loaded ${visitedCountries.size} valid visited countries.`);
+                }
+
+                // Load user name
+                const savedName = localStorage.getItem('atlasphereUserName_v3');
+                if (savedName) {
+                    userName = savedName;
+                    isNameEntered = true; // Mark name as entered
+                    console.log(`Loaded user name: ${userName}`);
+                } else {
+                    isNameEntered = false; // No saved name
+                }
+            } catch (e) {
+                // Handle errors during loading (e.g., corrupted data)
+                console.error("Could not load state:", e);
+                // Clear potentially corrupted data and reset state
+                localStorage.removeItem('atlasphereVisitedCountries_v3');
+                localStorage.removeItem('atlasphereUserName_v3');
+                visitedCountries.clear(); // Clear in-memory set too
+                userName = null;
+                isNameEntered = false;
+                 // Use a more subtle notification
+                 // subtitleElement.textContent = 'Could not load previous session. Starting fresh.';
+            }
+        }
+
+        // === DOWNLOAD FUNCTIONALITY ===
+
+        /** Sets up the event listener for the download summary button. */
+        function setupDownloadButton() {
+            if (!downloadSummaryButton) return; // Ensure button exists
+
+            downloadSummaryButton.addEventListener('click', async () => {
+                // Disable button and show generating message
+                downloadSummaryButton.disabled = true;
+                downloadSummaryButton.textContent = 'Generating...';
+
+                try {
+                    console.log("Generating summary image...");
+                    // Temporarily show the list if it's hidden, needed for html2canvas
+                    const wasHidden = visitedListContainer.classList.contains('hidden');
+                    if (wasHidden) {
+                        visitedListContainer.classList.remove('hidden');
+                        // Wait briefly for layout update using requestAnimationFrame
+                        await new Promise(resolve => requestAnimationFrame(resolve));
+                        await new Promise(resolve => setTimeout(resolve, 50)); // Extra small delay
+                    }
+
+                    // Get background color dynamically from CSS variable
+                    const bgColor = getComputedStyle(document.documentElement).getPropertyValue('--bg-secondary').trim() || '#2c313a';
+
+                    // Generate canvas from the visited info section
+                    const canvas = await html2canvas(visitedInfoSection, {
+                        backgroundColor: bgColor, // Use dynamic background color
+                        useCORS: true,           // Needed for potential external resources
+                        logging: false,          // Disable html2canvas console logs
+                        scale: 2                 // Increase scale for better resolution
+                    });
+
+                    // Hide the list again if it was originally hidden
+                    if (wasHidden) {
+                        visitedListContainer.classList.add('hidden');
+                    }
+                    console.log("Summary image generated.");
+
+                    // Create download link
+                    const imageDataUrl = canvas.toDataURL('image/png'); // Get image data
+                    const link = document.createElement('a');
+                    link.href = imageDataUrl;
+                    // Create filename, replace spaces in username with underscores
+                    const filename = `atlasphere_summary_${(userName || 'user').replace(/\s+/g, '_')}.png`;
+                    link.download = filename;
+
+                    // Trigger download
+                    document.body.appendChild(link); // Append link to body
+                    link.click();                    // Simulate click
+                    document.body.removeChild(link); // Remove link from body
+                    console.log("Download initiated.");
+
+                } catch (error) {
+                    console.error("Error generating image:", error);
+                    alert("Error: Could not generate summary image."); // Keep alert for critical errors
+                } finally {
+                    // Re-enable button and restore text (check disabled state again)
+                    downloadSummaryButton.disabled = visitedCountries.size === 0;
+                    downloadSummaryButton.textContent = 'Download Summary';
+                }
+            });
+        }
+
+        // === RESET FUNCTIONALITY ===
+
+        /**
+         * Resets the application state (visited countries, user name)
+         * and refreshes the page.
+         */
+        function resetApp() {
+            // Confirmation dialog to prevent accidental reset
+            if (!confirm("Are you sure you want to reset all visited countries and your name? This cannot be undone.")) {
+                console.log("Reset cancelled by user.");
+                return; // Stop reset if user cancels
+            }
+
+            console.log("Resetting map data and user name...");
+
+            // Clear relevant items from localStorage - THIS IS THE CRITICAL STEP before reload.
+            localStorage.removeItem('atlasphereVisitedCountries_v3');
+            localStorage.removeItem('atlasphereUserName_v3');
+
+            console.log("Local storage cleared. Refreshing page...");
+
+            // Refresh the page to ensure a clean state from localStorage.
+            // Add a slight delay to allow console logs to potentially show before reload
+            setTimeout(() => {
+                window.location.reload();
+            }, 150);
+        }
+
+        /** Sets up the event listener for the reset button. */
+        function setupResetButton() {
+            if (!resetButton) return; // Ensure button exists
+            resetButton.addEventListener('click', () => {
+                resetApp(); // Call the reset function on click
+            });
+            // Set initial disabled state (based on loaded state)
+             resetButton.disabled = visitedCountries.size === 0 && !isNameEntered;
+        }
+
+
+        // === RESIZE HANDLING ===
+
+        /** Handles window resize events to adjust map and globe views. */
+        function handleResize() {
+            // Map view resizing is handled fairly well by SVG viewBox/preserveAspectRatio
+
+            // If globe is initialized, update camera aspect ratio and renderer size
+            if (globeInitialized && globeContainer && globeRenderer && globeCamera) {
+                const width = globeContainer.clientWidth;
+                const height = globeContainer.clientHeight;
+                // Ensure dimensions are valid before updating
+                if (width > 0 && height > 0) {
+                    globeCamera.aspect = width / height; // Update aspect ratio
+                    globeCamera.updateProjectionMatrix(); // Apply aspect ratio change
+                    globeRenderer.setSize(width, height); // Resize renderer output
+                } else {
+                    console.warn("Globe container zero dimensions on resize.");
+                }
+            }
+        }
+
+        // --- Start the application ---
+        initializeApp();
+
+    </script>
+
+</body>
+</html>
