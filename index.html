@@ -41,6 +41,7 @@
             --flag-error-fill: #444444; /* Color for flag load error */
         }
 
+        /* --- Base HTML & Body Styles --- */
         html, body {
             height: 100%;
             margin: 0;
@@ -178,7 +179,7 @@
         /* --- Map View Specific Styles --- */
         #map-container {
             width: 100%;
-            margin: 0 auto 2.5rem auto;
+            margin: 0 auto 1.5rem auto;
             aspect-ratio: 16 / 9; /* Maintain aspect ratio */
             max-height: calc(70vh - 100px); /* Limit height relative to viewport */
             position: relative;
@@ -234,8 +235,8 @@
             opacity: 0.85; /* Slightly dim on hover to indicate interaction */
         }
         .country.flag-error { /* Style for when flag fails to load */
-             fill: var(--flag-error-fill);
-             stroke: #777;
+           fill: var(--flag-error-fill);
+           stroke: #777;
         }
 
         /* SVG Pattern for Flags */
@@ -313,6 +314,7 @@
         #visited-info {
             margin-top: 1.5rem;
             padding: 1rem; /* Base padding */
+            /* Use @media for responsive padding adjustments */
             @media (min-width: 640px) { /* sm breakpoint */
                 padding: 1.5rem;
             }
@@ -342,6 +344,7 @@
         }
         #visited-count {
             font-size: 2.2rem; /* Slightly smaller count */
+            /* Use @media for responsive font size adjustments */
             @media (min-width: 768px) { /* md breakpoint */
                 font-size: 2.5rem; /* Restore size on larger screens */
             }
@@ -354,7 +357,7 @@
             width: 100%;
             background-color: var(--bg-tertiary);
             border-radius: 4px;
-            height: 1.5rem; /* Increased height from 0.75rem to 1.5rem */
+            height: 1.5rem; /* Increased height */
             overflow: hidden;
             margin-bottom: 1.5rem; /* Spacing below progress bar */
             border: 1px solid #555;
@@ -380,14 +383,16 @@
         #visited-list-container {
             margin-top: 1.5rem;
             padding: 1rem; /* Base padding */
+            /* Use @media for responsive padding */
              @media (min-width: 640px) { /* sm breakpoint */
                 padding: 1.5rem;
             }
             background-color: var(--bg-primary);
             border-radius: 6px;
             border: 1px solid var(--bg-tertiary);
-            max-height: 300px; /* Limit height and allow scroll */
-            overflow-y: auto; /* Enable vertical scroll */
+            /* REMOVED max-height: 300px; */
+            /* REMOVED overflow-y: auto; */
+            /* Container will now grow with content */
         }
         .list-title {
             font-size: 1rem;
@@ -442,12 +447,13 @@
         /* --- Action Buttons Container --- */
         #action-buttons-container {
             margin-top: 1.5rem;
-            margin-bottom: 2rem; /* Add this line for extra space below the buttons */
+            margin-bottom: 2rem; /* Add extra space below the buttons */
             display: flex;
             flex-direction: column; /* Stack buttons vertically on small screens */
             gap: 0.75rem; /* Reduced gap for stacked buttons */
             width: 100%;
             max-width: 800px; /* Match visited info width */
+            align-items: center; /* Center buttons when stacked */
         }
         @media (min-width: 640px) { /* sm breakpoint */
             #action-buttons-container {
@@ -532,6 +538,7 @@
         #name-prompt-dialog {
             background-color: var(--bg-secondary);
             padding: 1.5rem; /* Base padding */
+            /* Use @media for responsive padding */
             @media (min-width: 640px) { /* sm breakpoint */
                 padding: 2rem 2.5rem; /* Restore padding */
             }
@@ -584,6 +591,7 @@
             font-size: 0.9rem;
             letter-spacing: 0.5px;
             width: 100%; /* Full width button */
+            /* Use @media for responsive width */
             @media (min-width: 640px) { /* sm breakpoint */
                 width: auto; /* Auto width on larger screens */
             }
@@ -632,11 +640,9 @@
                     <title id="mapTitle">World Map - Click countries to mark as visited</title>
                     <defs id="flag-patterns">
                         </defs>
-                    <g id="map-group"></g>
-                </svg>
+                    <g id="map-group"></g> </svg>
             </div>
-            <div id="tooltip" role="tooltip"></div>
-        </div>
+            <div id="tooltip" role="tooltip"></div> </div>
 
         <div id="globe-view" class="view-panel">
             <div id="globe-container" aria-label="Interactive 3D globe - Click countries to mark visited">
@@ -655,7 +661,8 @@
              </div>
              <div id="visited-list-container" class="hidden">
                  <h3 class="list-title">Visited Countries by Continent:</h3>
-                 <div id="visited-list"></div>
+                 <div id="visited-list">
+                     </div>
              </div>
         </div>
 
@@ -680,15 +687,14 @@
         const COUNTRY_NAMES_URL = 'https://unpkg.com/world-atlas@1/world/110m.tsv'; // Contains ISO n3, name
         // Flag API using ISO A2 lowercase codes (e.g., 'us', 'de')
         // Using flagcdn.com - provides SVG and PNG flags. Using PNG for simplicity in canvas. w80 = 80px width.
-        const FLAG_URL_TEMPLATE = 'https://flagcdn.com/w80/{iso_a2_lower}.png';
-        const FLAG_SVG_URL_TEMPLATE = 'https://flagcdn.com/{iso_a2_lower}.svg'; // For SVG patterns
+        const FLAG_URL_TEMPLATE = 'https://flagcdn.com/w80/{iso_a2_lower}.png'; // For Globe texture (canvas)
+        const FLAG_SVG_URL_TEMPLATE = 'https://flagcdn.com/{iso_a2_lower}.svg'; // For SVG map patterns
 
-        // ISO 3166-1 alpha-3 to alpha-2 mapping (add more as needed or find a comprehensive JSON)
-        // Source: Partially derived, needs verification/completion for full coverage
+        // ISO 3166-1 alpha-3 to alpha-2 mapping (Partial list, needs expansion for full coverage)
         const iso3to2Map = { AFG: 'AF', AGO: 'AO', ALB: 'AL', ARE: 'AE', ARG: 'AR', ARM: 'AM', ATA: 'AQ', ATF: 'TF', AUS: 'AU', AUT: 'AT', AZE: 'AZ', BDI: 'BI', BEL: 'BE', BEN: 'BJ', BFA: 'BF', BGD: 'BD', BGR: 'BG', BHS: 'BS', BIH: 'BA', BLR: 'BY', BLZ: 'BZ', BMU: 'BM', BOL: 'BO', BRA: 'BR', BRN: 'BN', BTN: 'BT', BWA: 'BW', CAF: 'CF', CAN: 'CA', CHE: 'CH', CHL: 'CL', CHN: 'CN', CIV: 'CI', CMR: 'CM', COD: 'CD', COG: 'CG', COL: 'CO', CRI: 'CR', CUB: 'CU', CYP: 'CY', CZE: 'CZ', DEU: 'DE', DJI: 'DJ', DNK: 'DK', DOM: 'DO', DZA: 'DZ', ECU: 'EC', EGY: 'EG', ERI: 'ER', ESH: 'EH', ESP: 'ES', EST: 'EE', ETH: 'ET', FIN: 'FI', FJI: 'FJ', FLK: 'FK', FRA: 'FR', GAB: 'GA', GBR: 'GB', GEO: 'GE', GHA: 'GH', GIN: 'GN', GMB: 'GM', GNB: 'GW', GNQ: 'GQ', GRC: 'GR', GRL: 'GL', GTM: 'GT', GUF: 'GF', GUY: 'GY', HND: 'HN', HRV: 'HR', HTI: 'HT', HUN: 'HU', IDN: 'ID', IND: 'IN', IRL: 'IE', IRN: 'IR', IRQ: 'IQ', ISL: 'IS', ISR: 'IL', ITA: 'IT', JAM: 'JM', JOR: 'JO', JPN: 'JP', KAZ: 'KZ', KEN: 'KE', KGZ: 'KG', KHM: 'KH', KOR: 'KR', KWT: 'KW', LAO: 'LA', LBN: 'LB', LBR: 'LR', LBY: 'LY', LKA: 'LK', LSO: 'LS', LTU: 'LT', LUX: 'LU', LVA: 'LV', MAR: 'MA', MDA: 'MD', MDG: 'MG', MEX: 'MX', MKD: 'MK', MLI: 'ML', MMR: 'MM', MNE: 'ME', MNG: 'MN', MOZ: 'MZ', MRT: 'MR', MWI: 'MW', MYS: 'MY', NAM: 'NA', NCL: 'NC', NER: 'NE', NGA: 'NG', NIC: 'NI', NLD: 'NL', NOR: 'NO', NPL: 'NP', NZL: 'NZ', OMN: 'OM', PAK: 'PK', PAN: 'PA', PER: 'PE', PHL: 'PH', PNG: 'PG', POL: 'PL', PRI: 'PR', PRK: 'KP', PRT: 'PT', PRY: 'PY', QAT: 'QA', ROU: 'RO', RUS: 'RU', RWA: 'RW', SAU: 'SA', SDN: 'SD', SEN: 'SN', SLB: 'SB', SLE: 'SL', SLV: 'SV', SOM: 'SO', SRB: 'RS', SSD: 'SS', SUR: 'SR', SVK: 'SK', SVN: 'SI', SWE: 'SE', SWZ: 'SZ', SYR: 'SY', TCD: 'TD', TGO: 'TG', THA: 'TH', TJK: 'TJ', TKM: 'TM', TLS: 'TL', TTO: 'TT', TUN: 'TN', TUR: 'TR', TWN: 'TW', TZA: 'TZ', UGA: 'UG', UKR: 'UA', URY: 'UY', USA: 'US', UZB: 'UZ', VEN: 'VE', VNM: 'VN', VUT: 'VU', YEM: 'YE', ZAF: 'ZA', ZMB: 'ZM', ZWE: 'ZW' }; // Kosovo (XKX) not in 110m data, others might be missing
 
-        // Mapping from ISO A3 country code to continent (verify/expand as needed)
-        const countryContinentMap = { AFG: 'Asia', AGO: 'Africa', ALB: 'Europe', ARE: 'Asia', ARG: 'South America', ARM: 'Asia', ATA: 'Antarctica', ATF: 'Antarctica', AUS: 'Oceania', AUT: 'Europe', AZE: 'Asia', BDI: 'Africa', BEL: 'Europe', BEN: 'Africa', BFA: 'Africa', BGD: 'Asia', BGR: 'Europe', BHS: 'North America', BIH: 'Europe', BLR: 'Europe', BLZ: 'North America', BMU: 'North America', BOL: 'South America', BRA: 'South America', BRN: 'Asia', BTN: 'Asia', BWA: 'Africa', CAF: 'Africa', CAN: 'North America', CHE: 'Europe', CHL: 'South America', CHN: 'Asia', CIV: 'Africa', CMR: 'Africa', COD: 'Africa', COG: 'Africa', COL: 'South America', CRI: 'North America', CUB: 'North America', CYP: 'Asia', CZE: 'Europe', DEU: 'Europe', DJI: 'Africa', DNK: 'Europe', DOM: 'North America', DZA: 'Africa', ECU: 'South America', EGY: 'Africa', ERI: 'Africa', ESH: 'Africa', ESP: 'Europe', EST: 'Europe', ETH: 'Africa', FIN: 'Europe', FJI: 'Oceania', FLK: 'South America', FRA: 'Europe', GAB: 'Africa', GBR: 'Europe', GEO: 'Asia', GHA: 'Africa', GIN: 'Africa', GMB: 'Africa', GNB: 'Africa', GNQ: 'Africa', GRC: 'Europe', GRL: 'North America', GTM: 'North America', GUF: 'South America', GUY: 'South America', HND: 'North America', HRV: 'Europe', HTI: 'North America', HUN: 'Europe', IDN: 'Asia', IND: 'Asia', IRL: 'Europe', IRN: 'Asia', IRQ: 'Asia', ISL: 'Europe', ISR: 'Asia', ITA: 'Europe', JAM: 'North America', JOR: 'Asia', JPN: 'Asia', KAZ: 'Asia', KEN: 'Africa', KGZ: 'Asia', KHM: 'Asia', KOR: 'Asia', KWT: 'Asia', LAO: 'Asia', LBN: 'Asia', LBR: 'Africa', LBY: 'Africa', LKA: 'Asia', LSO: 'Africa', LTU: 'Europe', LUX: 'Europe', LVA: 'Europe', MAR: 'Africa', MDA: 'Europe', MDG: 'Africa', MEX: 'North America', MKD: 'Europe', MLI: 'Africa', MMR: 'Asia', MNE: 'Europe', MNG: 'Asia', MOZ: 'Africa', MRT: 'Africa', MWI: 'Africa', MYS: 'Asia', NAM: 'Africa', NCL: 'Oceania', NER: 'Africa', NGA: 'Africa', NIC: 'North America', NLD: 'Europe', NOR: 'Europe', NPL: 'Asia', NZL: 'Oceania', OMN: 'Asia', PAK: 'Asia', PAN: 'North America', PER: 'South America', PHL: 'Asia', PNG: 'Oceania', POL: 'Europe', PRI: 'North America', PRK: 'Asia', PRT: 'Europe', PRY: 'South America', QAT: 'Asia', ROU: 'Europe', RUS: 'Europe', RWA: 'Africa', SAU: 'Asia', SDN: 'Africa', SEN: 'Africa', SLB: 'Oceania', SLE: 'Africa', SLV: 'North America', SOM: 'Africa', SRB: 'Europe', SSD: 'Africa', SUR: 'South America', SVK: 'Europe', SVN: 'Europe', SWE: 'Europe', SWZ: 'Africa', SYR: 'Asia', TCD: 'Africa', TGO: 'Africa', THA: 'Asia', TJK: 'Asia', TKM: 'Asia', TLS: 'Asia', TTO: 'North America', TUN: 'Africa', TUR: 'Asia', TWN: 'Asia', TZA: 'Africa', UGA: 'Africa', UKR: 'Europe', URY: 'South America', USA: 'North America', UZB: 'Asia', VEN: 'South America', VNM: 'Asia', VUT: 'Oceania', YEM: 'Asia', ZAF: 'Africa', ZMB: 'Africa', ZWE: 'Africa' };
+        // Mapping from ISO A3 country code to continent (Partial list)
+        const countryContinentMap = { AFG: 'Asia', AGO: 'Africa', ALB: 'Europe', ARE: 'Asia', ARG: 'South America', ARM: 'Asia', ATA: 'Antarctica', ATF: 'Antarctica', AUS: 'Oceania', AUT: 'Europe', AZE: 'Asia', BDI: 'Africa', BEL: 'Europe', BEN: 'Africa', BFA: 'Africa', BGD: 'Asia', BGR: 'Europe', BHS: 'North America', BIH: 'Europe', BLR: 'Europe', BLZ: 'North America', BMU: 'North America', BOL: 'South America', BRA: 'South America', BRN: 'Asia', BTN: 'Asia', BWA: 'Africa', CAF: 'Africa', CAN: 'North America', CHE: 'Europe', CHL: 'South America', CHN: 'Asia', CIV: 'Africa', CMR: 'Africa', COD: 'Africa', COG: 'Africa', COL: 'South America', CRI: 'North America', CUB: 'North America', CYP: 'Asia', CZE: 'Europe', DEU: 'Europe', DJI: 'Africa', DNK: 'Europe', DOM: 'North America', DZA: 'Africa', ECU: 'South America', EGY: 'Africa', ERI: 'Africa', ESH: 'Africa', ESP: 'Europe', EST: 'Europe', ETH: 'Africa', FIN: 'Europe', FJI: 'Oceania', FLK: 'South America', FRA: 'Europe', GAB: 'Africa', GBR: 'Europe', GEO: 'Asia', GHA: 'Africa', GIN: 'Africa', GMB: 'Africa', GNB: 'Africa', GNQ: 'Africa', GRC: 'Europe', GRL: 'North America', GTM: 'North America', GUF: 'South America', GUY: 'South America', HND: 'North America', HRV: 'Europe', HTI: 'North America', HUN: 'Europe', IDN: 'Asia', IND: 'Asia', IRL: 'Europe', IRN: 'Asia', IRQ: 'Asia', ISL: 'Europe', ISR: 'Asia', ITA: 'Europe', JAM: 'North America', JOR: 'Asia', JPN: 'Asia', KAZ: 'Asia', KEN: 'Africa', KGZ: 'Asia', KHM: 'Asia', KOR: 'Asia', KWT: 'Asia', LAO: 'Asia', LBN: 'Asia', LBR: 'Africa', LBY: 'Africa', LKA: 'Asia', LSO: 'Africa', LTU: 'Europe', LUX: 'Europe', LVA: 'Europe', MAR: 'Africa', MDA: 'Europe', MDG: 'Africa', MEX: 'North America', MKD: 'Europe', MLI: 'ML', MMR: 'Asia', MNE: 'Europe', MNG: 'MN', MOZ: 'MZ', MRT: 'MR', MWI: 'MW', MYS: 'MY', NAM: 'NA', NCL: 'Oceania', NER: 'NE', NGA: 'NG', NIC: 'NI', NLD: 'NL', NOR: 'NO', NPL: 'NP', NZL: 'NZ', OMN: 'OM', PAK: 'PK', PAN: 'PA', PER: 'PE', PHL: 'PH', PNG: 'PG', POL: 'PL', PRI: 'PR', PRK: 'KP', PRT: 'PT', PRY: 'PY', QAT: 'QA', ROU: 'RO', RUS: 'Europe', RWA: 'RW', SAU: 'SA', SDN: 'SD', SEN: 'SN', SLB: 'SB', SLE: 'SL', SLV: 'SV', SOM: 'SO', SRB: 'RS', SSD: 'SS', SUR: 'SR', SVK: 'SK', SVN: 'SI', SWE: 'SE', SWZ: 'SZ', SYR: 'SY', TCD: 'TD', TGO: 'TG', THA: 'TH', TJK: 'TJ', TKM: 'TM', TLS: 'TL', TTO: 'TT', TUN: 'TN', TUR: 'Asia', TWN: 'TW', TZA: 'TZ', UGA: 'UG', UKR: 'UA', URY: 'UY', USA: 'US', UZB: 'UZ', VEN: 'VE', VNM: 'VN', VUT: 'VU', YEM: 'YE', ZAF: 'ZA', ZMB: 'ZM', ZWE: 'ZW' };
         const continentOrder = ['Africa', 'Asia', 'Europe', 'North America', 'Oceania', 'South America', 'Antarctica'];
         const MIN_ZOOM = 1; const MAX_ZOOM = 18;
         const INITIAL_SVG_WIDTH = 960; const INITIAL_SVG_HEIGHT = 500;
@@ -776,7 +782,7 @@
                         if (iso_a3) {
                             countryIdMap[id] = iso_a3;
                         } else {
-                             // console.warn(`Missing ISO A3 for ID ${id} (${d.name})`);
+                            // console.warn(`Missing ISO A3 for ID ${id} (${d.name})`);
                         }
                     }
                 });
@@ -789,9 +795,9 @@
                     countryNameMap[d.id] &&
                     countryIdMap[d.id] && // Check if we have an A3 code
                     iso3to2Map[countryIdMap[d.id]] && // Check if we have an A2 mapping for the A3
-                    countryNameMap[d.id] !== 'Antarctica'
+                    countryNameMap[d.id] !== 'Antarctica' // Exclude Antarctica
                 );
-                // Add name and ISO A3 code to feature properties
+                // Add name and ISO A2 code to feature properties
                 countryFeatures.forEach(d => {
                     d.properties = d.properties || {};
                     d.properties.name = countryNameMap[d.id];
@@ -848,7 +854,7 @@
             // Scale projection based on initial SVG width
             projection = d3.geoMercator()
                 .scale(INITIAL_SVG_WIDTH / (2 * Math.PI) * 0.95) // Adjust scale factor
-                .translate([INITIAL_SVG_WIDTH / 2, INITIAL_SVG_HEIGHT / 1.5]); // Center map
+                .translate([INITIAL_SVG_WIDTH / 2, INITIAL_SVG_HEIGHT / 1.5]); // Center map slightly lower
             pathGenerator = d3.geoPath().projection(projection);
         }
 
@@ -861,7 +867,7 @@
                 // Limit panning extent slightly beyond initial view
                 .translateExtent([[-INITIAL_SVG_WIDTH * 0.5, -INITIAL_SVG_HEIGHT * 0.5], [INITIAL_SVG_WIDTH * 1.5, INITIAL_SVG_HEIGHT * 1.5]])
                 .on("start", handleZoomStart) // On zoom start event
-                .on("zoom", handleZoom)       // On zoom event
+                .on("zoom", handleZoom)     // On zoom event
                 .on("end", handleZoomEnd);     // On zoom end event
             mapSvg.call(zoom)
                  .on("dblclick.zoom", null); // Disable double-click zoom
@@ -904,10 +910,10 @@
                     }
                 });
              // Ensure globe texture reflects loaded state if globe view is active or becomes active
-            globeNeedsTextureUpdate = true;
-            if (activeView === 'globe-view' && globeInitialized) {
-                updateGlobeTexture();
-            }
+             globeNeedsTextureUpdate = true;
+             if (activeView === 'globe-view' && globeInitialized) {
+                 updateGlobeTexture();
+             }
         }
 
 
@@ -1022,8 +1028,33 @@
             // Position tooltip slightly offset from the cursor
             // Consider map container boundaries to prevent tooltip going off-screen
             const mapBounds = mapContainer.getBoundingClientRect();
-            const x = Math.min(event.pageX + 15, mapBounds.right - tooltip.node().offsetWidth - 5);
-            const y = Math.min(event.pageY + 10, mapBounds.bottom - tooltip.node().offsetHeight - 5);
+            const tooltipNode = tooltip.node();
+            if (!tooltipNode) return; // Exit if tooltip node doesn't exist yet
+
+            const tooltipWidth = tooltipNode.offsetWidth;
+            const tooltipHeight = tooltipNode.offsetHeight;
+
+            // Calculate potential positions
+            let x = event.pageX + 15;
+            let y = event.pageY + 10;
+
+            // Adjust if tooltip goes off right edge
+            if (x + tooltipWidth > window.innerWidth) {
+                x = event.pageX - tooltipWidth - 15;
+            }
+            // Adjust if tooltip goes off bottom edge
+            if (y + tooltipHeight > window.innerHeight) {
+                 y = event.pageY - tooltipHeight - 10;
+            }
+            // Adjust if tooltip goes off left edge (less common)
+            if (x < 0) {
+                x = 5;
+            }
+            // Adjust if tooltip goes off top edge (less common)
+             if (y < 0) {
+                y = 5;
+            }
+
 
             tooltip.style("left", x + "px")
                    .style("top", y + "px");
@@ -1108,13 +1139,13 @@
                     .attr("fill", "var(--bg-tertiary)"); // Background while flag loads or if transparent
 
                 pattern.append("image")
-                    .attr("class", "flag-pattern")
+                    .attr("class", "flag-pattern") // Assign class for CSS styling
                     .attr("xlink:href", flagSvgUrl)
                     .attr("x", 0)
                     .attr("y", 0)
                     .attr("width", 1) // Image covers pattern width
                     .attr("height", 1) // Image covers pattern height
-                    .attr("preserveAspectRatio", "xMidYMid slice") // Center, cover, crop
+                    .attr("preserveAspectRatio", "xMidYMid slice") // *** This is the key attribute ***
                     .on("error", function() { // Handle flag loading error
                         console.error(`Failed to load flag SVG: ${flagSvgUrl}`);
                         flagLoadErrors.add(countryId); // Mark this flag as failed
@@ -1218,9 +1249,9 @@
 
                 const material = new THREE.MeshPhongMaterial({
                     map: globeTexture,
-                    color: 0xffffff,
+                    color: 0xffffff, // Base color if texture fails
                     specular: 0x222222, // Slightly more specular
-                    shininess: 15,      // Slightly shinier
+                    shininess: 15,     // Slightly shinier
                     transparent: false,
                 });
                 globeSphere = new THREE.Mesh(geometry, material);
@@ -1230,9 +1261,9 @@
                 globeControls = new THREE.OrbitControls(globeCamera, globeRenderer.domElement);
                 globeControls.enableDamping = true;
                 globeControls.dampingFactor = 0.05;
-                globeControls.enablePan = false;
-                globeControls.minDistance = 1.8; // Adjusted min distance
-                globeControls.maxDistance = 10;  // Adjusted max distance
+                globeControls.enablePan = false; // Disable panning
+                globeControls.minDistance = 1.8; // Adjusted min zoom
+                globeControls.maxDistance = 10;  // Adjusted max zoom
                 globeControls.rotateSpeed = 0.4;
                 globeControls.zoomSpeed = 0.8;
                 globeControls.autoRotate = true;
@@ -1270,21 +1301,24 @@
          * Creates a starfield background using THREE.Points.
          */
         function createStarfield() {
-            const starQty = 10000; // More stars
+            const starQty = 10000; // Number of stars
             const positions = new Float32Array(starQty * 3);
             const colors = new Float32Array(starQty * 3);
             const color = new THREE.Color();
 
             for (let i = 0; i < starQty; i++) {
                 const i3 = i * 3;
-                const radius = 200 + Math.random() * 300; // Further out
-                const theta = Math.random() * Math.PI * 2;
-                const phi = Math.acos((Math.random() * 2) - 1);
+                // Position stars within a large sphere
+                const radius = 200 + Math.random() * 300; // Place stars far away
+                const theta = Math.random() * Math.PI * 2; // Random angle around Y axis
+                const phi = Math.acos((Math.random() * 2) - 1); // Random angle from Y axis
+
                 positions[i3]     = radius * Math.sin(phi) * Math.cos(theta);
                 positions[i3 + 1] = radius * Math.sin(phi) * Math.sin(theta);
                 positions[i3 + 2] = radius * Math.cos(phi);
 
-                color.setHSL(Math.random() * 0.1 + 0.55, 0.3, Math.random() * 0.4 + 0.5); // Bluish/white stars
+                // Assign slightly varying colors (mostly white/blueish)
+                color.setHSL(Math.random() * 0.1 + 0.55, 0.3, Math.random() * 0.4 + 0.5);
                 colors[i3]     = color.r;
                 colors[i3 + 1] = color.g;
                 colors[i3 + 2] = color.b;
@@ -1295,12 +1329,12 @@
             geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
 
             const material = new THREE.PointsMaterial({
-                size: 1.0, // Slightly larger stars
-                blending: THREE.AdditiveBlending,
-                depthWrite: false,
+                size: 1.0, // Size of each star point
+                blending: THREE.AdditiveBlending, // Make stars brighter where they overlap
+                depthWrite: false, // Don't obscure objects behind them
                 transparent: true,
-                opacity: 0.8,
-                vertexColors: true
+                opacity: 0.8, // Slight transparency
+                vertexColors: true // Use the colors defined in the geometry
             });
 
             starField = new THREE.Points(geometry, material);
@@ -1308,61 +1342,69 @@
         }
 
          /**
-         * Handles click events on the globe canvas for country selection.
-         */
-        function handleGlobeClick(event) {
-            if (!globeInitialized || !raycaster || !globeCamera || !globeSphere || countryFeatures.length === 0) return;
+          * Handles click events on the globe canvas for country selection.
+          */
+         function handleGlobeClick(event) {
+             if (!globeInitialized || !raycaster || !globeCamera || !globeSphere || countryFeatures.length === 0) return;
 
-            // Calculate mouse position in normalized device coordinates (-1 to +1)
-            const rect = globeRenderer.domElement.getBoundingClientRect();
-            const mouse = new THREE.Vector2();
-            mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-            mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+             // --- Calculate Mouse Coordinates ---
+             // Get the position and size of the canvas element
+             const rect = globeRenderer.domElement.getBoundingClientRect();
+             const mouse = new THREE.Vector2();
+             // Calculate mouse position in normalized device coordinates (-1 to +1)
+             // (event.clientX, event.clientY) are coordinates relative to the viewport
+             // We need to convert them relative to the canvas element
+             mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+             mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
 
-            // Update the picking ray with the camera and mouse position
-            raycaster.setFromCamera(mouse, globeCamera);
+             // --- Raycasting ---
+             // Update the picking ray with the camera and mouse position
+             raycaster.setFromCamera(mouse, globeCamera);
+             // Calculate objects intersecting the picking ray (only check the globe sphere)
+             const intersects = raycaster.intersectObject(globeSphere);
 
-            // Calculate objects intersecting the picking ray
-            const intersects = raycaster.intersectObject(globeSphere);
+             // --- Process Intersection ---
+             if (intersects.length > 0) { // Check if the ray hit the sphere
+                 const intersect = intersects[0]; // Get the closest intersection
+                 const point = intersect.point; // Intersection point in 3D world space
 
-            if (intersects.length > 0) {
-                const intersect = intersects[0];
-                const point = intersect.point; // Intersection point in 3D space
+                 // --- Convert 3D Point to Lat/Lon ---
+                 // Convert the 3D intersection point on the sphere surface to spherical coordinates (latitude/longitude)
+                 // Assuming sphere radius is 1 and centered at the origin (0,0,0)
+                 const radius = 1;
+                 // Latitude: Angle from the XZ plane (horizontal plane). Calculated using asin(y/radius).
+                 // Convert from radians to degrees. Note: Three.js Y is up.
+                 const latitude = Math.asin(point.y / radius) * (180 / Math.PI);
+                 // Longitude: Angle around the Y axis, measured from the positive Z axis in the XZ plane. Calculated using atan2(x, z).
+                 // Convert from radians to degrees.
+                 const longitude = Math.atan2(point.x, point.z) * (180 / Math.PI);
 
-                // Convert 3D intersection point to spherical coordinates (lat/lon)
-                // Assuming sphere radius is 1 and centered at origin
-                const radius = 1;
-                // Latitude: Angle from the XZ plane (asin(y/radius))
-                // Convert from radians to degrees. Note: Three.js Y is up, geographical latitude is often measured from equator.
-                const latitude = Math.asin(point.y / radius) * (180 / Math.PI);
-                // Longitude: Angle from the positive Z axis in the XZ plane (atan2(x, z))
-                // Convert from radians to degrees.
-                const longitude = Math.atan2(point.x, point.z) * (180 / Math.PI);
+                 // --- Find Clicked Country ---
+                 // Iterate through GeoJSON features to find which country contains the calculated [longitude, latitude] point
+                 const clickedCountry = countryFeatures.find(feature => {
+                     // d3.geoContains checks if a GeoJSON object contains a given point [longitude, latitude]
+                     return d3.geoContains(feature, [longitude, latitude]);
+                 });
 
-                // Find which country contains this lat/lon point
-                const clickedCountry = countryFeatures.find(feature => {
-                    // d3.geoContains expects [longitude, latitude]
-                    return d3.geoContains(feature, [longitude, latitude]);
-                });
+                 // --- Handle Country Click ---
+                 if (clickedCountry) { // If a country was found at the clicked point
+                     console.log(`Globe Click: ${clickedCountry.properties.name} (Lat: ${latitude.toFixed(2)}, Lon: ${longitude.toFixed(2)})`);
 
-                if (clickedCountry) {
-                    console.log(`Globe Click: ${clickedCountry.properties.name} (${latitude.toFixed(2)}, ${longitude.toFixed(2)})`);
+                      // Check if this is the very first country click AND name hasn't been entered
+                     if (!isNameEntered && visitedCountries.size === 0) {
+                         firstClickData = { source: 'globe', d: clickedCountry }; // Store click data
+                         showNamePrompt(); // Show the name input dialog
+                         return; // Stop processing until name is entered
+                     }
 
-                     // Check if this is the very first country click AND name hasn't been entered
-                    if (!isNameEntered && visitedCountries.size === 0) {
-                        firstClickData = { source: 'globe', d: clickedCountry }; // Store click data
-                        showNamePrompt(); // Show the name input dialog
-                        return; // Stop processing until name is entered
-                    }
+                     // Process the toggle (add/remove visited status)
+                     processCountryToggle(clickedCountry.id, clickedCountry.properties.iso_a2);
 
-                    // Process the toggle
-                    processCountryToggle(clickedCountry.id, clickedCountry.properties.iso_a2);
-
-                } else {
-                    // console.log("Globe Click: Ocean or no country found at point.");
-                }
-            }
-        }
+                 } else {
+                     // console.log("Globe Click: Ocean or no country found at point."); // Clicked on water or area with no data
+                 }
+             }
+         }
 
 
         /**
@@ -1395,45 +1437,47 @@
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
 
                 // 2. Setup D3 projection and path generator for the texture canvas
+                // Use Equirectangular projection for mapping onto the sphere texture
                 const textureProjection = d3.geoEquirectangular()
-                    .fitSize([canvas.width, canvas.height], { type: "Sphere" }); // Fit projection to canvas
+                    .fitSize([canvas.width, canvas.height], { type: "Sphere" }); // Fit projection to canvas dimensions
                 const texturePathGenerator = d3.geoPath()
                     .projection(textureProjection)
-                    .context(ctx); // Draw directly onto canvas context
+                    .context(ctx); // Draw directly onto the 2D canvas context
 
                 // 3. Draw ALL countries with base land color and outline
-                ctx.beginPath(); // Start path for all countries
-                texturePathGenerator({type: "FeatureCollection", features: countryFeatures}); // Generate path data
-                ctx.fillStyle = landColor;
-                ctx.fill(); // Fill landmasses
-                ctx.strokeStyle = landOutlineColor;
-                ctx.lineWidth = 0.5; // Fine outline for base map
-                ctx.stroke(); // Draw outlines
+                ctx.beginPath(); // Start a single path for all base countries
+                // Generate path data for all country features
+                texturePathGenerator({type: "FeatureCollection", features: countryFeatures});
+                ctx.fillStyle = landColor; // Set fill color for land
+                ctx.fill(); // Fill all landmasses
+                ctx.strokeStyle = landOutlineColor; // Set outline color
+                ctx.lineWidth = 0.5; // Fine outline for the base map
+                ctx.stroke(); // Draw the outlines
 
                 // 4. Draw visited countries highlighted ON TOP with flags
                 const visitedFeatures = countryFeatures.filter(f => visitedCountries.has(f.id));
 
-                // Use Promise.all to load all necessary flags concurrently
+                // Use Promise.all to load all necessary flags concurrently before drawing
                 const flagPromises = visitedFeatures.map(feature => {
                     const isoA2 = feature.properties.iso_a2;
                     const countryId = feature.id;
 
-                    // Skip if no A2 code or if flag previously failed
+                    // Skip if no A2 code or if flag previously failed to load
                     if (!isoA2 || flagLoadErrors.has(countryId)) {
                         return Promise.resolve({ feature, img: null, error: true }); // Resolve immediately for error/skip case
                     }
 
                     const flagUrl = FLAG_URL_TEMPLATE.replace('{iso_a2_lower}', isoA2.toLowerCase());
 
-                    // Return cached image if available
+                    // Return cached image if available to avoid reloading
                     if (flagImageCache[flagUrl]) {
                         return Promise.resolve({ feature, img: flagImageCache[flagUrl], error: false });
                     }
 
-                    // Load image
+                    // Load image if not cached
                     return new Promise((resolve) => {
                         const img = new Image();
-                        img.crossOrigin = "Anonymous"; // Needed for canvas tainting if using external source
+                        img.crossOrigin = "Anonymous"; // Needed for canvas tainting if using external flag source
                         img.onload = () => {
                             flagImageCache[flagUrl] = img; // Cache successful load
                             resolve({ feature, img, error: false });
@@ -1447,103 +1491,115 @@
                     });
                 });
 
-                // Once all flags are loaded (or failed)
+                // Once all flags are loaded (or have failed)
                 Promise.all(flagPromises).then(results => {
                     results.forEach(({ feature, img, error }) => {
-                        ctx.beginPath(); // Begin path for this specific country
+                        ctx.beginPath(); // Begin path for this specific visited country
                         texturePathGenerator(feature); // Generate path data for the country
 
                         if (error || !img) {
-                            // Fill with error color if flag failed or skipped
+                            // --- Draw Error State ---
+                            // Fill with error color if flag failed or was skipped
                             ctx.fillStyle = flagErrorFill;
                             ctx.fill();
                             // Optionally add outline for error state
-                            ctx.strokeStyle = landOutlineColor; // Use base outline
-                            ctx.lineWidth = 0.7;
+                            ctx.strokeStyle = landOutlineColor; // Use base outline color
+                            ctx.lineWidth = 0.7; // Slightly thicker error outline
                             ctx.stroke();
                         } else {
+                            // --- Draw Flag Image ---
                             // Draw the flag image clipped to the country shape
-                            ctx.save(); // Save context state
-                            ctx.clip(); // Clip subsequent drawing to the country path
+                            ctx.save(); // Save context state (including current path)
+                            ctx.clip(); // Clip subsequent drawing operations to the country path
 
-                            // Calculate bounding box and center/scale image (xMidYMid slice)
+                            // Calculate bounding box of the country on the canvas
                             const bounds = texturePathGenerator.bounds(feature); // [[x0, y0], [x1, y1]]
                             const boundsWidth = bounds[1][0] - bounds[0][0];
                             const boundsHeight = bounds[1][1] - bounds[0][1];
 
-                            if (boundsWidth > 0 && boundsHeight > 0) {
+                            if (boundsWidth > 0 && boundsHeight > 0) { // Ensure valid bounds
+                                // --- Calculate Image Scaling (like CSS background-size: cover) ---
                                 const imgAspect = img.naturalWidth / img.naturalHeight;
                                 const boundsAspect = boundsWidth / boundsHeight;
                                 let drawWidth, drawHeight, dx, dy;
 
-                                if (imgAspect > boundsAspect) { // Image wider than bounds aspect
+                                if (imgAspect > boundsAspect) { // Image is wider than bounds aspect ratio
+                                    // Fit height, calculate width based on aspect ratio
                                     drawHeight = boundsHeight;
                                     drawWidth = drawHeight * imgAspect;
-                                    dx = bounds[0][0] - (drawWidth - boundsWidth) / 2; // Center horizontally
+                                    // Center horizontally
+                                    dx = bounds[0][0] - (drawWidth - boundsWidth) / 2;
                                     dy = bounds[0][1];
-                                } else { // Image taller than bounds aspect (or equal)
+                                } else { // Image is taller than bounds aspect ratio (or equal)
+                                    // Fit width, calculate height based on aspect ratio
                                     drawWidth = boundsWidth;
                                     drawHeight = drawWidth / imgAspect;
+                                    // Center vertically
                                     dx = bounds[0][0];
-                                    dy = bounds[0][1] - (drawHeight - boundsHeight) / 2; // Center vertically
+                                    dy = bounds[0][1] - (drawHeight - boundsHeight) / 2;
                                 }
 
+                                // Draw the image scaled and positioned to cover the bounds
                                 try {
                                     ctx.drawImage(img, dx, dy, drawWidth, drawHeight);
                                 } catch (drawError) {
                                     console.error(`Error drawing flag for ${feature.properties.name}:`, drawError);
-                                    // Fill with error color as fallback if drawImage fails
+                                    // Fill with error color as fallback if drawImage fails unexpectedly
                                     ctx.fillStyle = flagErrorFill;
                                     ctx.fill();
                                 }
                             } else {
-                                // If bounds are invalid, fill with error color
+                                // If bounds are invalid (e.g., width/height 0), fill with error color
                                 ctx.fillStyle = flagErrorFill;
                                 ctx.fill();
                             }
 
                             ctx.restore(); // Restore context state (remove clipping path)
 
-                            // Draw outline ON TOP of the flag/clip area
-                            ctx.strokeStyle = visitedOutlineColor;
-                            ctx.lineWidth = 0.8; // Slightly thicker outline for visited
+                            // --- Draw Visited Outline ---
+                            // Draw outline ON TOP of the flag/clip area for better visibility
+                            ctx.strokeStyle = visitedOutlineColor; // Use the visited outline color
+                            ctx.lineWidth = 0.8; // Slightly thicker outline for visited countries
                             ctx.stroke(); // Stroke the country path again for the outline
                         }
                     });
 
-                    // 5. Update the Three.js texture
+                    // 5. Update the Three.js texture after all drawing is done
                     if (globeSphere && globeSphere.material.map) {
-                        globeSphere.material.map.needsUpdate = true; // Signal texture needs upload to GPU
+                        globeSphere.material.map.needsUpdate = true; // Signal Three.js texture needs upload to GPU
                     }
                     console.log("Globe texture updated with flags.");
 
                 }).catch(loadError => {
+                    // Catch errors from Promise.all itself (e.g., network issues fetching multiple flags)
                     console.error("Error loading one or more flags for globe:", loadError);
                 });
 
             } catch (error) {
+                // Catch synchronous errors during the texture update process
                 console.error("Error during globe texture update:", error);
             } finally {
-                // Mark update as complete, even if there were errors in promises
+                // Mark update as complete, even if there were errors in the async flag loading/drawing
                 globeNeedsTextureUpdate = false;
             }
         }
 
 
         /**
-         * The main animation loop for the Three.js globe.
+         * The main animation loop for the Three.js globe. Renders each frame.
          */
         function animateGlobe() {
             // Stop loop if globe is not initialized or scene doesn't exist
             if (!globeInitialized || !globeScene) {
-                globeAnimationId = null;
+                globeAnimationId = null; // Ensure ID is cleared
                 return;
             }
-            // Request the next frame
+            // Request the next frame from the browser
             globeAnimationId = requestAnimationFrame(animateGlobe);
 
-            // Update globe texture if flagged (might be set by click handlers)
-            // Note: Actual drawing happens async in updateGlobeTexture's Promise.all
+            // Update globe texture if flagged (e.g., after a country click)
+            // Note: Actual drawing happens async in updateGlobeTexture's Promise.all,
+            // but this ensures the update process is initiated if needed.
             if (globeNeedsTextureUpdate) {
                  updateGlobeTexture(); // This initiates the update process
             }
@@ -1553,7 +1609,7 @@
 
             // Slowly rotate starfield for a dynamic background effect
             if (starField) {
-                starField.rotation.y += 0.0001; // Slower rotation
+                starField.rotation.y += 0.0001; // Adjust speed as desired
             }
 
             // Render the scene from the camera's perspective
@@ -1567,7 +1623,7 @@
         /** Shows the name prompt modal dialog. */
         function showNamePrompt() {
             if (namePromptOverlay) {
-                namePromptOverlay.style.display = 'flex'; // Use flex to center dialog
+                namePromptOverlay.style.display = 'flex'; // Use flex to enable centering via align-items/justify-content
                 if (nameInput) nameInput.focus(); // Focus the input field for convenience
             }
         }
@@ -1579,32 +1635,32 @@
             }
         }
 
-        /** Sets up event listeners for the name prompt dialog. */
+        /** Sets up event listeners for the name prompt dialog (button click, enter key). */
         function setupNamePrompt() {
             if (!namePromptButton || !nameInput) return; // Ensure elements exist
 
             // Handle click on the "Begin Journey" button
             namePromptButton.addEventListener('click', () => {
-                const enteredName = nameInput.value.trim(); // Get trimmed name
-                if (enteredName) {
+                const enteredName = nameInput.value.trim(); // Get trimmed name from input
+                if (enteredName) { // Check if name is not empty
                     // Name entered successfully
                     userName = enteredName;
-                    isNameEntered = true;
-                    localStorage.setItem('atlasphereUserName', userName); // Save name to localStorage
-                    updateTitles(); // Update UI titles (includes subtitle via switchView)
+                    isNameEntered = true; // Set flag
+                    localStorage.setItem('atlasphereUserName_v3', userName); // Save name to localStorage
+                    updateTitles(); // Update UI titles (includes subtitle)
                     hideNamePrompt(); // Close the dialog
 
-                    // If a country click triggered the prompt, process it now
+                    // If a country click triggered the prompt, process that click now
                     if (firstClickData) {
-                        const { source, d } = firstClickData;
-                        processCountryToggle(d.id, d.properties?.iso_a2);
+                        const { source, d } = firstClickData; // Get stored click data
+                        processCountryToggle(d.id, d.properties?.iso_a2); // Process the toggle
                         firstClickData = null; // Clear the stored click data
                     }
-                    // Enable reset button if conditions met
-                     updateVisitedInfo();
+                    // Enable reset button if conditions met (now that name is entered)
+                     updateVisitedInfo(); // Update button states based on new name/visited status
                 } else {
                     // Optional: Provide feedback if name is empty
-                    nameInput.style.borderColor = 'red'; // Simple visual feedback
+                    nameInput.style.borderColor = 'red'; // Simple visual feedback: red border
                     // Remove feedback after a short delay
                     setTimeout(() => { if(nameInput) nameInput.style.borderColor = ''; }, 1500);
                 }
@@ -1613,7 +1669,7 @@
             // Allow submitting the name by pressing Enter in the input field
             nameInput.addEventListener('keypress', (event) => {
                 if (event.key === 'Enter') {
-                    event.preventDefault(); // Prevent potential form submission
+                    event.preventDefault(); // Prevent default form submission behavior (if any)
                     namePromptButton.click(); // Trigger button click programmatically
                 }
             });
@@ -1624,6 +1680,7 @@
         /**
          * Processes the logic for adding/removing a country from the visited set
          * and updating the UI (map, globe, info panel) accordingly.
+         * This is the central function called by both map and globe click handlers.
          * @param {string} countryId - The ISO n3 ID of the country to toggle.
          * @param {string} isoA2 - The ISO a2 code for flag lookup.
          */
@@ -1635,46 +1692,48 @@
                 return;
             }
 
-            let changed = false; // Flag to track if state changed
+            let changed = false; // Flag to track if the visited set actually changed
 
-            // Find the corresponding SVG element for map updates
+            // Find the corresponding SVG element for map updates (might be empty if map isn't drawn/visible)
             const countryElement = mapGroup.select(`.country[data-country-id="${countryId}"]`);
 
-            // Toggle visited status
+            // Toggle visited status in the Set
             if (visitedCountries.has(countryId)) {
                 // --- Remove country ---
                 visitedCountries.delete(countryId);
-                if (!countryElement.empty()) {
-                    removeFlagPattern(countryElement, countryId); // Remove flag from map
+                if (!countryElement.empty()) { // Update SVG map if element exists
+                    removeFlagPattern(countryElement, countryId); // Remove flag pattern from map
                 }
                 changed = true;
                 console.log(`Removed: ${name}`);
             } else {
                 // --- Add country ---
                 visitedCountries.add(countryId);
-                if (!countryElement.empty()) {
-                    applyFlagPattern(countryElement, countryId, isoA2); // Apply flag to map
+                if (!countryElement.empty()) { // Update SVG map if element exists
+                    applyFlagPattern(countryElement, countryId, isoA2); // Apply flag pattern to map
                 }
                 changed = true;
                 console.log(`Added: ${name}`);
             }
 
-            // If the visited set changed, update UI, save state, and flag globe update
+            // If the visited set changed, update UI elements, save state, and flag globe texture update
             if (changed) {
                 updateVisitedInfo(); // Update count, list, progress bar, buttons
-                saveState(); // Save to localStorage
+                saveState(); // Save the new state to localStorage
                 globeNeedsTextureUpdate = true; // Signal the globe texture needs regeneration
-                 // If globe is currently active and initialized, trigger update immediately
-                if(activeView === 'globe-view' && globeInitialized) {
+
+                 // If globe is currently the active view and initialized, trigger the texture update immediately
+                 // Otherwise, the update will happen when switching to the globe view or in the next animation frame.
+                 if(activeView === 'globe-view' && globeInitialized) {
                     updateGlobeTexture();
-                }
+                 }
             }
 
-            // Remove pressed state from map element if it exists
+            // Remove pressed state from map element if it exists (relevant for map clicks)
             if (!countryElement.empty()) {
                 countryElement.classed("pressed", false);
             }
-            tooltip.style("display", "none"); // Hide tooltip
+            tooltip.style("display", "none"); // Hide tooltip after click
         }
 
 
@@ -1693,147 +1752,152 @@
 
         /** Updates the subtitle text based on the active view and user name. */
         function updateSubtitle() {
-             const baseMapSubtitle = 'Interact with the World Map: Hover for name, click to toggle visited status.';
-             const baseGlobeSubtitle = 'Explore the 3D Globe: Drag to rotate, scroll to zoom, click country to toggle visited status.';
-             const namePrefix = userName ? `Welcome, ${userName}! ` : '';
+           // Define base subtitles for each view
+           const baseMapSubtitle = 'Interact with the World Map: Hover for name, click to toggle visited status.';
+           const baseGlobeSubtitle = 'Explore the 3D Globe: Drag to rotate, scroll to zoom, click country to toggle visited status.';
+           // Add personalized prefix if name exists
+           const namePrefix = userName ? `Welcome, ${userName}! ` : '';
 
-             subtitleElement.textContent = activeView === 'map-view'
+           // Set the subtitle text based on the currently active view
+           subtitleElement.textContent = activeView === 'map-view'
                  ? namePrefix + baseMapSubtitle
                  : namePrefix + baseGlobeSubtitle;
         }
 
 
-        /** Updates the visited count, progress bar, and visited countries list. */
+        /** Updates the visited count, progress bar, and visited countries list UI elements. */
         function updateVisitedInfo() {
             const count = visitedCountries.size;
-            visitedCountElement.textContent = count;
+            visitedCountElement.textContent = count; // Update the displayed count
 
-            // Calculate and update progress bar
+            // --- Calculate and update progress bar ---
             const percentage = totalCountries > 0 ? Math.round((count / totalCountries) * 100) : 0;
-            progressBar.style.width = `${percentage}%`; // <-- THIS LINE sets the loading bar size
-            progressBar.textContent = `${percentage}%`;
-            progressContainer.setAttribute('aria-valuenow', percentage);
-            progressContainer.title = `${count} of ${totalCountries} countries visited (${percentage}%)`;
+            progressBar.style.width = `${percentage}%`; // Set the visual width of the bar
+            progressBar.textContent = `${percentage}%`; // Display percentage text inside bar
+            progressContainer.setAttribute('aria-valuenow', percentage); // Update accessibility attribute
+            progressContainer.title = `${count} of ${totalCountries} countries visited (${percentage}%)`; // Update tooltip
 
-            // Update the list of visited countries
-            visitedListDiv.innerHTML = ''; // Clear previous list
+            // --- Update the list of visited countries ---
+            visitedListDiv.innerHTML = ''; // Clear previous list content
             if (count > 0) {
-                visitedListContainer.classList.remove('hidden'); // Show list container
+                visitedListContainer.classList.remove('hidden'); // Show list container if there are visited countries
                 const grouped = {}; // Object to group countries by continent
 
-                // Group visited countries by continent
+                // Group visited countries by continent using the maps
                 visitedCountries.forEach(id => {
-                    const isoA3 = countryIdMap[id];
-                    const continent = countryContinentMap[isoA3] || 'Other Regions'; // Fallback continent
-                    const name = countryNameMap[id];
+                    const isoA3 = countryIdMap[id]; // Get ISO A3 code from ID
+                    const continent = countryContinentMap[isoA3] || 'Other Regions'; // Get continent, use fallback if needed
+                    const name = countryNameMap[id]; // Get country name
                     if (name && name !== 'Unknown') { // Ensure valid name
                         if (!grouped[continent]) {
-                            grouped[continent] = []; // Initialize array if first country in continent
+                            grouped[continent] = []; // Initialize array if first country in this continent
                         }
-                        grouped[continent].push(name);
+                        grouped[continent].push(name); // Add country name to the continent's list
                     }
                 });
 
-                // Sort continents based on predefined order
+                // Sort continents based on predefined order (continentOrder array)
                 const sortedContinents = Object.keys(grouped).sort((a, b) => {
                     const indexA = continentOrder.indexOf(a);
                     const indexB = continentOrder.indexOf(b);
+                    // Handle cases where a continent might not be in the predefined order
                     if (indexA === -1 && indexB === -1) return a.localeCompare(b); // Sort unknowns alphabetically
                     if (indexA === -1) return 1; // Put unknowns at the end
                     if (indexB === -1) return -1; // Put unknowns at the end
-                    return indexA - indexB; // Sort by predefined order
+                    return indexA - indexB; // Sort by predefined order index
                 });
 
 
-                // Create HTML list for each continent
+                // Create HTML list structure for each continent
                 sortedContinents.forEach(continent => {
                     const groupDiv = document.createElement('div');
                     groupDiv.className = 'continent-group';
 
                     const title = document.createElement('h4');
                     title.className = 'continent-title';
-                    title.textContent = continent;
+                    title.textContent = continent; // Set continent title
                     groupDiv.appendChild(title);
 
                     const list = document.createElement('ul');
-                    grouped[continent].sort((a, b) => a.localeCompare(b)); // Sort countries alphabetically
+                    grouped[continent].sort((a, b) => a.localeCompare(b)); // Sort countries alphabetically within the continent
                     grouped[continent].forEach(name => {
                         const li = document.createElement('li');
-                        li.textContent = name;
+                        li.textContent = name; // Add country name as list item
                         list.appendChild(li);
                     });
                     groupDiv.appendChild(list);
-                    visitedListDiv.appendChild(groupDiv); // Add continent group to main list div
+                    visitedListDiv.appendChild(groupDiv); // Add the continent group (title + list) to the main list div
                 });
             } else {
                 visitedListContainer.classList.add('hidden'); // Hide list container if no countries visited
             }
 
-            // Enable/disable action buttons based on state
-            downloadSummaryButton.disabled = count === 0;
-            // Reset button requires name entered OR at least one country visited (allow reset even if name not entered)
-            resetButton.disabled = count === 0 && !isNameEntered; // Can reset if name entered OR countries selected
+            // --- Enable/disable action buttons based on state ---
+            downloadSummaryButton.disabled = count === 0; // Enable download only if countries are visited
+            // Enable reset if name is entered OR if at least one country is visited
+            resetButton.disabled = count === 0 && !isNameEntered;
         }
 
-        /** Saves the current state (visited countries, user name) to localStorage. */
+        /** Saves the current state (visited countries set, user name) to localStorage. */
         function saveState() {
             try {
-                // Save visited countries array
+                // Save visited countries array (convert Set to Array for JSON stringification)
                 localStorage.setItem('atlasphereVisitedCountries_v3', JSON.stringify(Array.from(visitedCountries)));
-                // Save user name if entered, otherwise remove it
+                // Save user name if entered, otherwise remove the item from storage
                 if (userName) {
                     localStorage.setItem('atlasphereUserName_v3', userName);
                 } else {
                      localStorage.removeItem('atlasphereUserName_v3');
                 }
-                // console.log("State saved.");
+                // console.log("State saved."); // Optional log for debugging
             } catch (e) {
-                // Handle potential storage errors (e.g., quota exceeded)
+                // Handle potential storage errors (e.g., quota exceeded, security restrictions)
                 console.error("Could not save state:", e);
-                 // Use a more subtle notification instead of alert
-                 // Maybe add a small status indicator somewhere?
+                 // Optionally notify user, e.g., via a small non-blocking message
             }
         }
 
-        /** Loads state (visited countries, user name) from localStorage. */
+        /** Loads state (visited countries, user name) from localStorage on initialization. */
         function loadState() {
             try {
-                // Load and parse visited countries
+                // --- Load and parse visited countries ---
                 const savedVisited = localStorage.getItem('atlasphereVisitedCountries_v3');
                 if (savedVisited) {
-                    const parsedVisited = JSON.parse(savedVisited);
-                    // Clear existing set before loading
+                    const parsedVisited = JSON.parse(savedVisited); // Parse the JSON string
+                    // Clear existing set before loading saved data
                     visitedCountries.clear();
-                    // Add loaded IDs to the Set, ensuring they are valid country IDs we know
+                    // Add loaded IDs to the Set, but only if they correspond to valid country data loaded earlier
                     parsedVisited.forEach(id => {
-                        if (countryNameMap[id] && countryIdMap[id] && iso3to2Map[countryIdMap[id]]) { // Check validity
-                             visitedCountries.add(id);
+                        // Check if the ID exists in our loaded country data maps
+                        if (countryNameMap[id] && countryIdMap[id] && iso3to2Map[countryIdMap[id]]) {
+                             visitedCountries.add(id); // Add valid ID to the Set
                         } else {
+                            // Log if an invalid ID was found in storage (e.g., from older data version)
                             console.warn(`Loaded invalid/unknown country ID from storage: ${id}`);
                         }
                     });
                     console.log(`Loaded ${visitedCountries.size} valid visited countries.`);
                 }
 
-                // Load user name
+                // --- Load user name ---
                 const savedName = localStorage.getItem('atlasphereUserName_v3');
                 if (savedName) {
-                    userName = savedName;
-                    isNameEntered = true; // Mark name as entered
+                    userName = savedName; // Set the global userName variable
+                    isNameEntered = true; // Mark name as entered since it was loaded
                     console.log(`Loaded user name: ${userName}`);
                 } else {
-                    isNameEntered = false; // No saved name
+                    isNameEntered = false; // No saved name found
                 }
             } catch (e) {
-                // Handle errors during loading (e.g., corrupted data)
+                // Handle errors during loading (e.g., corrupted JSON data)
                 console.error("Could not load state:", e);
-                // Clear potentially corrupted data and reset state
+                // Clear potentially corrupted data from localStorage and reset in-memory state
                 localStorage.removeItem('atlasphereVisitedCountries_v3');
                 localStorage.removeItem('atlasphereUserName_v3');
                 visitedCountries.clear(); // Clear in-memory set too
                 userName = null;
                 isNameEntered = false;
-                 // Use a more subtle notification
+                 // Optionally notify user about the reset
                  // subtitleElement.textContent = 'Could not load previous session. Starting fresh.';
             }
         }
@@ -1845,57 +1909,59 @@
             if (!downloadSummaryButton) return; // Ensure button exists
 
             downloadSummaryButton.addEventListener('click', async () => {
-                // Disable button and show generating message
+                // Disable button and show generating message during processing
                 downloadSummaryButton.disabled = true;
                 downloadSummaryButton.textContent = 'Generating...';
 
                 try {
                     console.log("Generating summary image...");
-                    // Temporarily show the list if it's hidden, needed for html2canvas
+                    // Temporarily show the list container if it's hidden, as html2canvas needs elements to be visible
                     const wasHidden = visitedListContainer.classList.contains('hidden');
                     if (wasHidden) {
                         visitedListContainer.classList.remove('hidden');
-                        // Wait briefly for layout update using requestAnimationFrame
+                        // Wait briefly for the browser to render the change using requestAnimationFrame
                         await new Promise(resolve => requestAnimationFrame(resolve));
-                        await new Promise(resolve => setTimeout(resolve, 50)); // Extra small delay
+                        // Add an extra small delay just in case rendering takes slightly longer
+                        await new Promise(resolve => setTimeout(resolve, 50));
                     }
 
-                    // Get background color dynamically from CSS variable
+                    // Get background color dynamically from CSS variable for the canvas background
                     const bgColor = getComputedStyle(document.documentElement).getPropertyValue('--bg-secondary').trim() || '#2c313a';
 
-                    // Generate canvas from the visited info section
+                    // Generate canvas from the visited info section using html2canvas
                     const canvas = await html2canvas(visitedInfoSection, {
-                        backgroundColor: bgColor, // Use dynamic background color
-                        useCORS: true,           // Needed for potential external resources
-                        logging: false,          // Disable html2canvas console logs
-                        scale: 2                 // Increase scale for better resolution
+                        backgroundColor: bgColor, // Use dynamic background color from theme
+                        useCORS: true,            // Needed if any external resources (like fonts) are used within the captured element
+                        logging: false,           // Disable html2canvas internal console logs
+                        scale: 2                  // Increase scale for better resolution in the downloaded image
                     });
 
-                    // Hide the list again if it was originally hidden
+                    // Hide the list container again if it was originally hidden
                     if (wasHidden) {
                         visitedListContainer.classList.add('hidden');
                     }
                     console.log("Summary image generated.");
 
-                    // Create download link
-                    const imageDataUrl = canvas.toDataURL('image/png'); // Get image data
-                    const link = document.createElement('a');
+                    // --- Create and trigger download link ---
+                    const imageDataUrl = canvas.toDataURL('image/png'); // Get image data as a base64 PNG URL
+                    const link = document.createElement('a'); // Create a temporary anchor element
                     link.href = imageDataUrl;
-                    // Create filename, replace spaces in username with underscores
+                    // Create filename, replace spaces in username with underscores for better compatibility
                     const filename = `atlasphere_summary_${(userName || 'user').replace(/\s+/g, '_')}.png`;
-                    link.download = filename;
+                    link.download = filename; // Set the download attribute with the filename
 
-                    // Trigger download
-                    document.body.appendChild(link); // Append link to body
+                    // Trigger the download by programmatically clicking the link
+                    document.body.appendChild(link); // Append link to body (required for Firefox)
                     link.click();                    // Simulate click
-                    document.body.removeChild(link); // Remove link from body
+                    document.body.removeChild(link); // Remove the temporary link from the body
                     console.log("Download initiated.");
 
                 } catch (error) {
+                    // Handle errors during image generation or download
                     console.error("Error generating image:", error);
-                    alert("Error: Could not generate summary image."); // Keep alert for critical errors
+                    alert("Error: Could not generate summary image."); // Use alert for user feedback on critical errors
                 } finally {
-                    // Re-enable button and restore text (check disabled state again)
+                    // Re-enable the button and restore its text, ensuring correct disabled state
                     downloadSummaryButton.disabled = visitedCountries.size === 0;
                     downloadSummaryButton.textContent = 'Download Summary';
                 }
@@ -1905,26 +1971,26 @@
         // === RESET FUNCTIONALITY ===
 
         /**
-         * Resets the application state (visited countries, user name)
-         * and refreshes the page.
+         * Resets the application state (visited countries, user name) by clearing
+         * localStorage and then refreshing the page.
          */
         function resetApp() {
             // Confirmation dialog to prevent accidental reset
-            if (!confirm("Are you sure you want to reset all visited countries and your name? This cannot be undone.")) {
+            if (!confirm("Are you sure you want to reset all visited countries and your name? This action cannot be undone.")) {
                 console.log("Reset cancelled by user.");
-                return; // Stop reset if user cancels
+                return; // Stop reset if user clicks 'Cancel'
             }
 
             console.log("Resetting map data and user name...");
 
-            // Clear relevant items from localStorage - THIS IS THE CRITICAL STEP before reload.
+            // Clear relevant items from localStorage - THIS IS THE CRITICAL STEP before reloading.
             localStorage.removeItem('atlasphereVisitedCountries_v3');
             localStorage.removeItem('atlasphereUserName_v3');
 
             console.log("Local storage cleared. Refreshing page...");
 
-            // Refresh the page to ensure a clean state from localStorage.
-            // Add a slight delay to allow console logs to potentially show before reload
+            // Refresh the page to force a reload from the now-cleared localStorage.
+            // Add a slight delay to allow console logs to potentially show before the reload happens.
             setTimeout(() => {
                 window.location.reload();
             }, 150);
@@ -1934,9 +2000,9 @@
         function setupResetButton() {
             if (!resetButton) return; // Ensure button exists
             resetButton.addEventListener('click', () => {
-                resetApp(); // Call the reset function on click
+                resetApp(); // Call the reset function when the button is clicked
             });
-            // Set initial disabled state (based on loaded state)
+            // Set initial disabled state based on the loaded state (can reset if name entered OR countries selected)
              resetButton.disabled = visitedCountries.size === 0 && !isNameEntered;
         }
 
@@ -1945,24 +2011,30 @@
 
         /** Handles window resize events to adjust map and globe views. */
         function handleResize() {
-            // Map view resizing is handled fairly well by SVG viewBox/preserveAspectRatio
+            // --- Map View Resizing ---
+            // SVG map view resizing is largely handled automatically by the `viewBox`
+            // and `preserveAspectRatio="xMidYMid meet"` attributes on the SVG element.
+            // No specific JavaScript intervention is usually needed unless complex scaling logic is required.
 
-            // If globe is initialized, update camera aspect ratio and renderer size
+            // --- Globe View Resizing ---
+            // If the globe is initialized, update camera aspect ratio and renderer size
             if (globeInitialized && globeContainer && globeRenderer && globeCamera) {
                 const width = globeContainer.clientWidth;
                 const height = globeContainer.clientHeight;
-                // Ensure dimensions are valid before updating
+                // Ensure dimensions are valid (greater than 0) before updating
                 if (width > 0 && height > 0) {
-                    globeCamera.aspect = width / height; // Update aspect ratio
-                    globeCamera.updateProjectionMatrix(); // Apply aspect ratio change
-                    globeRenderer.setSize(width, height); // Resize renderer output
+                    globeCamera.aspect = width / height; // Update camera aspect ratio to match new container dimensions
+                    globeCamera.updateProjectionMatrix(); // Apply the aspect ratio change
+                    globeRenderer.setSize(width, height); // Resize the WebGL renderer output canvas
                 } else {
+                    // Log a warning if the container dimensions are zero, which might indicate a layout issue
                     console.warn("Globe container zero dimensions on resize.");
                 }
             }
         }
 
         // --- Start the application ---
+        // Call the main initialization function when the script loads
         initializeApp();
 
     </script>
